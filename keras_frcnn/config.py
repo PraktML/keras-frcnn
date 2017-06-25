@@ -7,14 +7,12 @@ class Config:
     def __init__(self):
 
         # additional input
-        self.epoch_length = None
-        self.num_epochs = None
-        self.output_folder = None
-        self.train_path = None
-        self.image_folder = None
+
+
         self.classes_count = None
         self.parser = None
-        self.config_filename = None
+        self.epoch_length = None
+        self.num_epochs = None
 
         self.current_epoch = 0 # number of current epoch (0 indexed)
                                # to pick up training later on.
@@ -73,20 +71,23 @@ class Config:
         else:
             self.base_net_weights = 'resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
-        self.model_path = 'model_frcnn.hdf5'
-
+        self.model_name = 'model_frcnn.hdf5'
+        self.config_filename = "config.pickle"
+        self.output_folder = None  # has to be set to the run folder e.g. 'runs/YYYYMMDD-HHMMSS/'
+        self.train_path = None     # has to be set to the txt containing the image annotations
+        self.load_model = None     # from here training can be picked up
 def create_config_read_parser(parser):
     (options, args) = parser.parse_args()
 
     # resume training with old configuration
-    config_path = options.resume_config
-    if config_path:
-        if len(config_path) > 6  and config_path[-6] != 'pickle':
-            if config_path[-1] != '/':
-                config_path += '/'
-            config_path += 'config.pickle'
-        with open(config_path, 'rb') as config_f:
+    run_path = options.resume_run
+    if run_path:
+        if run_path[-1] != '/':
+            run_path += '/'
+        with open(run_path + "config.pickle", 'rb') as config_f:
             C = pickle.load(config_f)
+        C.output_folder = run_path
+        C.load_model = run_path + C.model_name
         print("Resume Training on epoch", C.current_epoch + 1)
 
         return C
@@ -101,16 +102,14 @@ def create_config_read_parser(parser):
 
     C.epoch_length = int(options.epoch_length)
     C.num_epochs = int(options.num_epochs)
+    C.parser = options.parser
 
 
     if not options.train_path:  # if filename is not given
         parser.error('Error: path to training data must be specified. Pass --path to command line')
     C.train_path = options.train_path
 
-    assert options.image_folder == '' or options.image_folder[-1] == '/'
-    C.image_folder = options.image_folder
-    C.parser = options.parser
-
+    # specify the folder in which all the meta data is stored.
     if not options.output_folder:  # set it to current date/time
         import time
         C.output_folder = time.strftime("runs/%Y%m%d-%H%M%S/")
@@ -122,11 +121,11 @@ def create_config_read_parser(parser):
     copy2(options.train_path, C.output_folder)
 
 
-    C.model_path = C.output_folder + options.output_weight_path
-
+    # specify input and output of weights
     if options.input_weight_path:
-        C.base_net_weights = options.input_weight_path
-
+        C.base_net_weights = options.input_weight_path  # the original ResNet model
+    C.load_model = None  # this will actually be loaded, might change when training is resumed
+    C.model_name = options.output_weight_path  # within run folder
 
 
 

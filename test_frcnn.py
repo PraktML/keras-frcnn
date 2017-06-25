@@ -17,22 +17,32 @@ sys.setrecursionlimit(40000)
 
 parser = OptionParser()
 
-parser.add_option("-p", "--path", dest="test_path", help="Path to test data.")
+parser.add_option("-t", "--path_testdata", dest="test_path", help="Path to test data.",
+                  default='images_test/')
 parser.add_option("-n", "--num_rois", dest="num_rois",
-                  help="Number of ROIs per iteration. Higher means more memory use.", default=32)
-parser.add_option("--config_filename", dest="config_filename", help=
-"Location to read the metadata related to the training (generated when training).",
-                  default="config.pickle")
+                  help="Number of ROIs per iteration. Higher means more memory use.") #, default=32)
+parser.add_option("--run", "--run_folder", dest="run_folder", help=
+"Location to read the metadata related to the training (generated when training).")
 
 (options, args) = parser.parse_args()
 
-if not options.test_path:  # if filename is not given
-    parser.error('Error: path to test data must be specified. Pass --path to command line')
+if not options.run_folder:  # if filename is not given
+    print('Path to run folder must be specified. Pass --run_folder to command line or chose from the list:')
+    run_list = sorted(os.listdir("runs/"))
+    for idx, run_name in enumerate(run_list):
+        print("[{}] {}".format(idx, run_name))
+    run_folder = "runs/"+str(run_list[int(input("Enter number: "))] + "/")
+else:
+    run_folder = options.run_folder + "" if options.run_folder[-1] == '/' else '/'
 
-config_output_filename = options.config_filename
+config_output_filename = run_folder + "config.pickle"
 
 with open(config_output_filename, 'rb') as f_in:
     C = pickle.load(f_in)
+
+results_folder = run_folder + "results_imgs/"
+if not os.path.exists(results_folder):
+    os.makedirs(results_folder)
 
 # turn off any data augmentation at test time
 C.use_horizontal_flips = False
@@ -40,7 +50,7 @@ C.use_vertical_flips = False
 C.rot_90 = False
 
 img_path = options.test_path
-
+assert img_path[-1] == '/'
 
 def format_img_size(img, C):
     """ formats the image size based on config """
@@ -97,7 +107,8 @@ if 'bg' not in class_mapping:
 class_mapping = {v: k for k, v in class_mapping.items()}
 print(class_mapping)
 class_to_color = {class_mapping[v]: np.random.randint(0, 255, 3) for v in class_mapping}
-C.num_rois = int(options.num_rois)
+if options.num_rois:
+    C.num_rois = int(options.num_rois)
 
 if K.image_dim_ordering() == 'th':
     input_shape_img = (3, None, None)
@@ -124,8 +135,8 @@ model_classifier_only = Model([feature_map_input, roi_input], classifier)
 
 model_classifier = Model([feature_map_input, roi_input], classifier)
 
-model_rpn.load_weights(C.model_path, by_name=True)
-model_classifier.load_weights(C.model_path, by_name=True)
+model_rpn.load_weights(run_folder + C.model_name, by_name=True)
+model_classifier.load_weights(run_folder + C.model_name, by_name=True)
 
 model_rpn.compile(optimizer='sgd', loss='mse')
 model_classifier.compile(optimizer='sgd', loss='mse')
@@ -238,4 +249,4 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
     print(all_dets)
     #cv2.imshow('img', img)
     #cv2.waitKey(0)
-    cv2.imwrite('./results_imgs/{}.png'.format(idx),img)
+    cv2.imwrite(run_folder + 'results_imgs/{}.png'.format(img_name),img)

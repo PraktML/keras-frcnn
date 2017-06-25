@@ -7,6 +7,7 @@ import numpy as np
 from optparse import OptionParser
 import pickle
 import json
+import traceback
 
 from keras import backend as K
 from keras.optimizers import Adam, SGD, RMSprop
@@ -18,21 +19,29 @@ from keras_frcnn import resnet as nn
 import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
 
+IMAGE_FOLDER = "" # currently the file has a prefix of 'images/'
 sys.setrecursionlimit(40000)
 parser = OptionParser()
 
 parser.add_option("-p", "--path", dest="train_path",
                   help="Path to .txt training data (in case of simple parser).")
-parser.add_option("-i", "--image_folder", dest="image_folder",
-                  help="Prefixes to paths provided in the .txt from -p (only relevant for simple parser), " +
-                       "last character has to be a '/'",
-                  default="images/")
-parser.add_option("-r", "--resume", dest="resume_config",
+parser.add_option("-r", "--resume", dest="resume_run",
                   help="Provide Path to folder or direct path to a config.pickle file")
 
 parser.add_option("--run", "--output_folder", dest="output_folder",
                   help="Specifies the folder that config etc is written into, if not provided " +
                        "will create new folder under runs/date-time/", )
+parser.add_option("--config_filename", dest="config_filename", help=
+"Location to store all the metadata related to the training (to be used when testing).",
+                  default="config.pickle")
+parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.",
+                  default='model_frcnn.hdf5')
+parser.add_option("--input_weight_path", dest="input_weight_path",
+                  help="Input path for weights. If not specified, will try to load default weights provided by keras.")
+
+
+
+
 
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
                   default='simple')  # '#default="pascal_voc"),
@@ -50,13 +59,6 @@ parser.add_option("--num_epochs", dest="num_epochs", help="Number of epochs.",
                   default=100)  # 2000
 parser.add_option("--epochs_length", dest="epoch_length", help="Number of batches in an epoch",
                   default=10)  # 2000
-parser.add_option("--config_filename", dest="config_filename", help=
-"Location to store all the metadata related to the training (to be used when testing).",
-                  default="config.pickle")
-parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.",
-                  default='./model_frcnn.hdf5')
-parser.add_option("--input_weight_path", dest="input_weight_path",
-                  help="Input path for weights. If not specified, will try to load default weights provided by keras.")
 parser.add_option("--verbose", dest="verbose",
                   help="Additional Output is shown, possible values 0 or 1.",
                   default='0')
@@ -71,7 +73,7 @@ elif C.parser == 'simple':
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 
-all_imgs_dict, classes_count, class_mapping = get_data(C.train_path, image_folder=C.image_folder)
+all_imgs_dict, classes_count, class_mapping = get_data(C.train_path, image_folder=IMAGE_FOLDER)
 all_imgs = []
 for key in all_imgs_dict:
     all_imgs.append(all_imgs_dict[key])
@@ -126,17 +128,22 @@ model_classifier = Model([img_input, roi_input], classifier)
 # this is a model that holds both the RPN and the classifier, used to load/save weights for the models
 # is not trained itself!
 model_all = Model([img_input, roi_input], rpn[:2] + classifier)
+if C.load_model is not None:
 
-try:
-    print('loading weights from {}'.format(C.base_net_weights))
-    model_rpn.load_weights(C.base_net_weights, by_name=True)
-    model_classifier.load_weights(C.base_net_weights, by_name=True)
-except:
-    print('Could not load pretrained model weights from {}. Weights can be found at {} and {}'.format(
-        C.base_net_weights,
-        'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
-        'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
-    ))
+    print("Reload already trained model", C.load_model)  # already includes run path
+    model_rpn.load_weights(C.load_model, by_name=True)
+    model_classifier.load_weights(C.load_model, by_name=True)
+else:
+    try:
+        print('loading base net weights from {}'.format(C.base_net_weights))
+        model_rpn.load_weights(C.base_net_weights, by_name=True)
+        model_classifier.load_weights(C.base_net_weights, by_name=True)
+    except:
+        print('Could not load pretrained model weights from {}. Weights can be found at {} and {}'.format(
+            C.base_net_weights,
+            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
+            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+        ))
 
 optimizer = Adam(lr=1e-4)
 optimizer_classifier = Adam(lr=1e-4)
@@ -275,15 +282,19 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 start_time = time.time()
 
                 if curr_loss < best_loss:
+                    model_path = C.output_folder + C.model_name
                     if C.verbose:
-                        print('Total loss decreased from {} to {}, saving weights'.format(best_loss, curr_loss))
+                        print('Total loss decreased from {} to {}, \nsaving weights to {}'.format(
+                            best_loss, curr_loss, model_path))
                     best_loss = curr_loss
-                    model_all.save_weights(C.model_path)
+                    model_all.save_weights(model_path)
 
                 break
 
         except Exception as e:
-            print('Exception: {}'.format(e))
+            print('Exception:: {}'.format(e))
+
+            raise
             continue
 
     #with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
