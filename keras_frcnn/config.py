@@ -13,6 +13,7 @@ class Config:
         self.image_folder = None
         self.classes_count = None
         self.parser = None
+        self.config_filename = None
 
 
         # more verbose output in training and test
@@ -75,6 +76,15 @@ def create_config_read_parser(parser):
 
     # pass the settings from the command line, and persist them in the config object
     C = Config()
+    C.config_filename = options.config_filename
+    C.num_rois = int(options.num_rois)
+    C.use_horizontal_flips = bool(options.horizontal_flips)
+    C.use_vertical_flips = bool(options.vertical_flips)
+    C.rot_90 = bool(options.rot_90)
+
+    C.epoch_length = int(options.epoch_length)
+    C.num_epochs = int(options.num_epochs)
+
 
     if not options.train_path:  # if filename is not given
         parser.error('Error: path to training data must be specified. Pass --path to command line')
@@ -94,14 +104,13 @@ def create_config_read_parser(parser):
     os.makedirs(C.output_folder)
     copy2(options.train_path, C.output_folder)
 
-    C.num_rois = int(options.num_rois)
-    C.use_horizontal_flips = bool(options.horizontal_flips)
-    C.use_vertical_flips = bool(options.vertical_flips)
-    C.rot_90 = bool(options.rot_90)
 
     C.model_path = C.output_folder + options.output_weight_path
 
     if options.input_weight_path:
         C.base_net_weights = options.input_weight_path
+
+
+
 
     return C
