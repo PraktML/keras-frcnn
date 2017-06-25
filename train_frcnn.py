@@ -2,8 +2,6 @@ from __future__ import division
 import random
 import pprint
 import sys
-import os
-from shutil import copy2
 import time
 import numpy as np
 from optparse import OptionParser
@@ -21,7 +19,6 @@ import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
 
 sys.setrecursionlimit(40000)
-DEFAULT_TRAININGS_PATH = "C:/Users/Florian/PycharmProjects/scripts/images/"
 parser = OptionParser()
 
 parser.add_option("-p", "--path", dest="train_path",
@@ -59,46 +56,16 @@ parser.add_option("--verbose", dest="verbose",
                   help="Additional Output is shown, possible values 0 or 1.",
                   default='0')
 
-(options, args) = parser.parse_args()
+C = config.create_config_read_parser(parser)
 
-# pass the settings from the command line, and persist them in the config object
-C = config.Config()
-
-if not options.train_path:   # if filename is not given
-	parser.error('Error: path to training data must be specified. Pass --path to command line')
-C.train_path = options.train_path
-
-assert options.image_folder == '' or options.image_folder[-1] == '/'
-C.image_folder = options.image_folder
-
-if options.parser == 'pascal_voc':
-	from keras_frcnn.pascal_voc_parser import get_data
-elif options.parser == 'simple':
-	from keras_frcnn.simple_parser import get_data
+if C.parser == 'pascal_voc':
+    from keras_frcnn.pascal_voc_parser import get_data
+elif C.parser == 'simple':
+    from keras_frcnn.simple_parser import get_data
 else:
-	raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
+    raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 
-if not options.output_folder:  # set it to current date/time
-    import time
-    C.output_folder = time.strftime("runs/%Y%m%d-%H%M%S/")
-else:
-    C.output_folder = options.output_folder
-    if not os.path.exists(C.output_folder):
-        input("Output folder"+ str(C.output_folder) + "doesn't exist. Press any key to create it.")
-os.makedirs(C.output_folder)
-copy2(options.train_path, C.output_folder)
-
-C.num_rois = int(options.num_rois)
-C.use_horizontal_flips = bool(options.horizontal_flips)
-C.use_vertical_flips = bool(options.vertical_flips)
-C.rot_90 = bool(options.rot_90)
-
-C.model_path = C.output_folder + options.output_weight_path
-
-if options.input_weight_path:
-    C.base_net_weights = options.input_weight_path
-
-all_imgs_dict, classes_count, class_mapping = get_data(options.train_path, image_folder=options.image_folder)
+all_imgs_dict, classes_count, class_mapping = get_data(C.train_path, image_folder=C.image_folder)
 all_imgs = []
 for key in all_imgs_dict:
    all_imgs.append(all_imgs_dict[key])

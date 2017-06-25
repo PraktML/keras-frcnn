@@ -1,5 +1,6 @@
 from keras import backend as K
-
+import os
+from shutil import copy2
 
 class Config:
     def __init__(self):
@@ -11,6 +12,7 @@ class Config:
         self.train_path = None
         self.image_folder = None
         self.classes_count = None
+        self.parser = None
 
 
         # more verbose output in training and test
@@ -68,4 +70,38 @@ class Config:
 
         self.model_path = 'model_frcnn.hdf5'
 
+def create_config_read_parser(parser):
+    (options, args) = parser.parse_args()
 
+    # pass the settings from the command line, and persist them in the config object
+    C = Config()
+
+    if not options.train_path:  # if filename is not given
+        parser.error('Error: path to training data must be specified. Pass --path to command line')
+    C.train_path = options.train_path
+
+    assert options.image_folder == '' or options.image_folder[-1] == '/'
+    C.image_folder = options.image_folder
+    C.parser = options.parser
+
+    if not options.output_folder:  # set it to current date/time
+        import time
+        C.output_folder = time.strftime("runs/%Y%m%d-%H%M%S/")
+    else:
+        C.output_folder = options.output_folder
+        if not os.path.exists(C.output_folder):
+            input("Output folder" + str(C.output_folder) + "doesn't exist. Press any key to create it.")
+    os.makedirs(C.output_folder)
+    copy2(options.train_path, C.output_folder)
+
+    C.num_rois = int(options.num_rois)
+    C.use_horizontal_flips = bool(options.horizontal_flips)
+    C.use_vertical_flips = bool(options.vertical_flips)
+    C.rot_90 = bool(options.rot_90)
+
+    C.model_path = C.output_folder + options.output_weight_path
+
+    if options.input_weight_path:
+        C.base_net_weights = options.input_weight_path
+
+    return C
