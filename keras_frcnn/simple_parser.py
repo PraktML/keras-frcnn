@@ -19,7 +19,7 @@ def get_data(input_path, image_folder='', train_test_split=None):
 
         for line in f:
             line_split = line.strip().split(',')
-            (filename, x1, y1, x2, ya2, class_name) = line_split
+            (filename, x1, y1, x2, y2, class_name) = line_split
 
             # add prefix to filename
             filename = image_folder + filename
@@ -48,17 +48,18 @@ def get_data(input_path, image_folder='', train_test_split=None):
                 all_imgs[filename]['height'] = rows
                 all_imgs[filename]['bboxes'] = []
 
-            # load a data split form the provided file
-            if train_test_split is None:
-                if np.random.randint(0, 6) > 0:
-                    all_imgs[filename]['imageset'] = 'trainval'
+                # load a data split form the provided file
+                if train_test_split is None:
+                    if np.random.randint(0, 6) > 0:
+                        all_imgs[filename]['imageset'] = 'trainval'
+                    else:
+                        all_imgs[filename]['imageset'] = 'test'
                 else:
-                    all_imgs[filename]['imageset'] = 'test'
-            else:
-                all_imgs[filename]['imageset'] = train_test_split[filename]
+                    print("Loading Train/Test split from file")
+                    all_imgs[filename]['imageset'] = train_test_split[filename]
 
-                all_imgs[filename]['bboxes'].append(
-                    {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
+            all_imgs[filename]['bboxes'].append(
+                {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
 
 #    all_data = []
 #    for key in all_imgs:
