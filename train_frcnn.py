@@ -1,10 +1,14 @@
+from __future__ import division
 import random
 import pprint
 import sys
+import os
+from shutil import copy2
 import time
 import numpy as np
 from optparse import OptionParser
 import pickle
+import json
 
 from keras import backend as K
 from keras.optimizers import Adam, SGD, RMSprop
@@ -17,29 +21,55 @@ import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
 
 sys.setrecursionlimit(40000)
-
+DEFAULT_TRAININGS_PATH = "C:/Users/Florian/PycharmProjects/scripts/images/"
 parser = OptionParser()
 
-parser.add_option("-p", "--path", dest="train_path", help="Path to training data.")
+parser.add_option("-p", "--path", dest="train_path",
+                  help="Path to .txt training data (in case of simple parser).")
+parser.add_option("-i", "--image_folder", dest="image_folder",
+                  help="Prefixes to paths provided in the .txt from -p (only relevant for simple parser), "+
+                  "last character has to be a '/'",
+                  default="images/")
+parser.add_option("-r", "--output_folder", dest="output_folder",
+                  help="Specifies the folder that config etc is written into, if not provided "+
+                  "will create new folder under runs/date-time/", )
+
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
-				default="pascal_voc"),
+                  default='simple')  # '#default="pascal_voc"),
 parser.add_option("-n", "--num_rois", dest="num_rois",
-				help="Number of ROIs per iteration. Higher means more memory use.", default=32)
-parser.add_option("--hf", dest="horizontal_flips", help="Augment with horizontal flips in training. (Default=false).", action="store_true", default=False)
-parser.add_option("--vf", dest="vertical_flips", help="Augment with vertical flips in training. (Default=false).", action="store_true", default=False)
-parser.add_option("--rot", "--rot_90", dest="rot_90", help="Augment with 90 degree rotations in training. (Default=false).",
-				  action="store_true", default=False)
-parser.add_option("--num_epochs", dest="num_epochs", help="Number of epochs.", default=2000)
+                  help="Number of ROIs per iteration. Higher means more memory use.",
+                  default=32)
+parser.add_option("--hf", dest="horizontal_flips", help="Augment with horizontal flips in training. (Default=false).",
+                  action="store_true", default=False)
+parser.add_option("--vf", dest="vertical_flips", help="Augment with vertical flips in training. (Default=false).",
+                  action="store_true", default=False)
+parser.add_option("--rot", "--rot_90", dest="rot_90",
+                  help="Augment with 90 degree rotations in training. (Default=false).",
+                  action="store_true", default=False)
+parser.add_option("--num_epochs", dest="num_epochs", help="Number of epochs.",
+                  default=100) # 2000
 parser.add_option("--config_filename", dest="config_filename", help=
-				"Location to store all the metadata related to the training (to be used when testing).",
-				default="config.pickle")
-parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.", default='./model_frcnn.hdf5')
-parser.add_option("--input_weight_path", dest="input_weight_path", help="Input path for weights. If not specified, will try to load default weights provided by keras.")
+"Location to store all the metadata related to the training (to be used when testing).",
+                  default="config.pickle")
+parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.",
+                  default='./model_frcnn.hdf5')
+parser.add_option("--input_weight_path", dest="input_weight_path",
+                  help="Input path for weights. If not specified, will try to load default weights provided by keras." )
+parser.add_option("--verbose", dest="verbose",
+                  help="Additional Output is shown, possible values 0 or 1.",
+                  default='0')
 
 (options, args) = parser.parse_args()
 
+# pass the settings from the command line, and persist them in the config object
+C = config.Config()
+
 if not options.train_path:   # if filename is not given
 	parser.error('Error: path to training data must be specified. Pass --path to command line')
+C.train_path = options.train_path
+
+assert options.image_folder == '' or options.image_folder[-1] == '/'
+C.image_folder = options.image_folder
 
 if options.parser == 'pascal_voc':
 	from keras_frcnn.pascal_voc_parser import get_data
@@ -48,38 +78,43 @@ elif options.parser == 'simple':
 else:
 	raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 
-# pass the settings from the command line, and persist them in the config object
-C = config.Config()
+if not options.output_folder:  # set it to current date/time
+    import time
+    C.output_folder = time.strftime("runs/%Y%m%d-%H%M%S/")
+else:
+    C.output_folder = options.output_folder
+    if not os.path.exists(C.output_folder):
+        input("Output folder"+ str(C.output_folder) + "doesn't exist. Press any key to create it.")
+os.makedirs(C.output_folder)
+copy2(options.train_path, C.output_folder)
 
 C.num_rois = int(options.num_rois)
 C.use_horizontal_flips = bool(options.horizontal_flips)
 C.use_vertical_flips = bool(options.vertical_flips)
 C.rot_90 = bool(options.rot_90)
 
-C.model_path = options.output_weight_path
+C.model_path = C.output_folder + options.output_weight_path
 
 if options.input_weight_path:
-	C.base_net_weights = options.input_weight_path
+    C.base_net_weights = options.input_weight_path
 
-all_imgs, classes_count, class_mapping = get_data(options.train_path)
+all_imgs_dict, classes_count, class_mapping = get_data(options.train_path, image_folder=options.image_folder)
+all_imgs = []
+for key in all_imgs_dict:
+   all_imgs.append(all_imgs_dict[key])
 
 if 'bg' not in classes_count:
 	classes_count['bg'] = 0
 	class_mapping['bg'] = len(class_mapping)
 
 C.class_mapping = class_mapping
-
-inv_map = {v: k for k, v in class_mapping.iteritems()}
+C.classes_count = classes_count
+#inv_map = {v: k for k, v in class_mapping.items()}
 
 print('Training images per class:')
 pprint.pprint(classes_count)
 print('Num classes (including bg) = {}'.format(len(classes_count)))
 
-config_output_filename = options.config_filename
-
-with open(config_output_filename, 'w') as config_f:
-	pickle.dump(C,config_f)
-	print('Config has been written to {}, and can be loaded when testing to ensure correct results'.format(config_output_filename))
 
 random.shuffle(all_imgs)
 
@@ -109,13 +144,16 @@ shared_layers = nn.nn_base(img_input, trainable=True)
 # define the RPN, built on the base layers
 num_anchors = len(C.anchor_box_scales) * len(C.anchor_box_ratios)
 rpn = nn.rpn(shared_layers, num_anchors)
+# returns: rpn <- [x_class, x_regr, base_layers], base_layers is not used below
 
 classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(classes_count), trainable=True)
+# returns: classifier <- [out_class, out_regr]
 
 model_rpn = Model(img_input, rpn[:2])
 model_classifier = Model([img_input, roi_input], classifier)
 
 # this is a model that holds both the RPN and the classifier, used to load/save weights for the models
+# is not trained itself!
 model_all = Model([img_input, roi_input], rpn[:2] + classifier)
 
 try:
@@ -123,7 +161,8 @@ try:
 	model_rpn.load_weights(C.base_net_weights, by_name=True)
 	model_classifier.load_weights(C.base_net_weights, by_name=True)
 except:
-	print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+	print('Could not load pretrained model weights from {}. Weights can be found at {} and {}'.format(
+        C.base_net_weights,
 		'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
 		'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 	))
@@ -134,9 +173,22 @@ model_rpn.compile(optimizer=optimizer, loss=[losses.rpn_loss_cls(num_anchors), l
 model_classifier.compile(optimizer=optimizer_classifier, loss=[losses.class_loss_cls, losses.class_loss_regr(len(classes_count)-1)], metrics={'dense_class_{}'.format(len(classes_count)): 'accuracy'})
 model_all.compile(optimizer='sgd', loss='mae')
 
-epoch_length = 1000
+epoch_length = 10 # 1000
 num_epochs = int(options.num_epochs)
 iter_num = 0
+C.epoch_length = epoch_length
+C.num_epochs = num_epochs
+
+config_output_filename = C.output_folder + options.config_filename
+with open(config_output_filename, 'wb') as config_f:
+	pickle.dump(C,config_f, protocol=2) # pickle version 2 so can be read by Python 2
+	print('Config has been written to {}, and can be loaded when testing to ensure correct results'.format(config_output_filename))
+with open(C.output_folder+"config.json", 'w') as configjson:
+    json.dump(vars(C), configjson)
+with open(C.output_folder + "splits.pickle", 'wb') as splits_f:
+    splits = {filename: all_imgs_dict[filename]['imageset'] for filename in all_imgs_dict}
+    pickle.dump(splits, splits_f)
+del all_imgs_dict
 
 losses = np.zeros((epoch_length, 5))
 rpn_accuracy_rpn_monitor = []
@@ -145,8 +197,8 @@ start_time = time.time()
 
 best_loss = np.Inf
 
-class_mapping_inv = {v: k for k, v in class_mapping.iteritems()}
-print('Starting training')
+class_mapping_inv = {v: k for k, v in class_mapping.items()}
+print('Starting training', "verbose" if C.verbose else "")
 
 
 for epoch_num in range(num_epochs):
@@ -163,7 +215,7 @@ for epoch_num in range(num_epochs):
 				if mean_overlapping_bboxes == 0:
 					print('RPN is not producing bounding boxes that overlap the ground truth boxes. Check RPN settings or keep training.')
 
-			X, Y, img_data = data_gen_train.next()
+			X, Y, img_data = next(data_gen_train)
 
 			loss_rpn = model_rpn.train_on_batch(X, Y)
 
@@ -196,10 +248,10 @@ for epoch_num in range(num_epochs):
 			rpn_accuracy_for_epoch.append((len(pos_samples)))
 
 			if C.num_rois > 1:
-				if len(pos_samples) < C.num_rois/2:
+				if len(pos_samples) < C.num_rois//2:
 					selected_pos_samples = pos_samples.tolist()
 				else:
-					selected_pos_samples = np.random.choice(pos_samples, C.num_rois/2, replace=False).tolist()
+					selected_pos_samples = np.random.choice(pos_samples, C.num_rois//2, replace=False).tolist()
 				try:
 					selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples), replace=False).tolist()
 				except:
