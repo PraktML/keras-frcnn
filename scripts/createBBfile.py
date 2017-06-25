@@ -1,21 +1,24 @@
 import os
 import csv
-import config
+import scripts.settings as settings
 
 """ Convert the notations form the following datasets to be used with Keras-frcnn in the simple data reader mode
 the 3D bounding boxes form VehicleReI dinto a front and a back bounding box. """
 
 #PATH_VEHICLEREID = "/disk/ml/datasets/VehicleReId/"
-PATH_VEHICLEREID = config.PLATTE_BASEPATH + "VehicleReId/video_shots/"
+PATH_VEHICLEREID = settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
 #PATH_CITYSCAPES = "/disk/ml/datasets/cityscapes/"
 #PATH_BOXCARS = "/disk/ml/datasets/BoxCars21k/"
 
-LIMIT_OUTPUT = 1000 # only write the first n entries or "" for no limit
+LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
 
-OUTPUT_FILE = config.PROJECTS_BASEPATH + "scripts/bb"+str(LIMIT_OUTPUT)+".txt"
-TARGET_PATH = "images/"  # no spaces possible here!
-TARGET_NUMBER_FORMAT = '%05d'
-TARGET_SUFFIX = '.png'
+#OUTPUT_FILE = settings.PROJECTS_BASEPATH + "keras-frcnn/annotations/"
+OUTPUT_FILE = "../annotations/"
+#OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
+OUTPUT_FILE += "bb_all.txt"
+TARGET_PATH = ""  # no spaces possible here!
+TARGET_NUMBER_FORMAT = '%06d'
+TARGET_SUFFIX = '.bmp'
 
 counter = 0
 with open(OUTPUT_FILE, 'w+') as outfile:
@@ -25,6 +28,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
 
     for shot_name in ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]:
         if counter == 'break': break
+        print("processing shot", shot_name)
         anno_file = PATH_VEHICLEREID + shot_name + "_annotations.txt"
         if not os.path.isfile(anno_file):
             print("Annotation File:", anno_file, "doesn't exist, skip")
@@ -32,7 +36,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
         with open(anno_file, 'r') as file:
             csvreader = csv.reader(file, delimiter=',')
             for line in csvreader:
-                if counter != "":
+                if LIMIT_OUTPUT != "":
                     counter += 1
                     if counter >= LIMIT_OUTPUT:
                         print("Successfully finished after", counter, "entries")
@@ -52,7 +56,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 except ValueError:
                     print("Warning: invalid line in:", line)
                     continue
-                frame_path = TARGET_PATH + shot_name + "_" + TARGET_NUMBER_FORMAT % frame + TARGET_SUFFIX
+                frame_path = TARGET_PATH + shot_name + "/" + shot_name + "_" + TARGET_NUMBER_FORMAT % frame + TARGET_SUFFIX
 
                 # outer boundingbox: top left and bottom right corner
                 # (green_x, cyan_y) - (red_x, black_y)
