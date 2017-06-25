@@ -1,11 +1,12 @@
 from keras import backend as K
 import os
 from shutil import copy2
+import pickle
 
 class Config:
     def __init__(self):
 
-        # additional input just for informative purposes
+        # additional input
         self.epoch_length = None
         self.num_epochs = None
         self.output_folder = None
@@ -14,6 +15,9 @@ class Config:
         self.classes_count = None
         self.parser = None
         self.config_filename = None
+
+        self.current_epoch = 0 # number of current epoch (0 indexed)
+                               # to pick up training later on.
 
 
         # more verbose output in training and test
@@ -73,6 +77,19 @@ class Config:
 
 def create_config_read_parser(parser):
     (options, args) = parser.parse_args()
+
+    # resume training with old configuration
+    config_path = options.resume_config
+    if config_path:
+        if len(config_path) > 6  and config_path[-6] != 'pickle':
+            if config_path[-1] != '/':
+                config_path += '/'
+            config_path += 'config.pickle'
+        with open(config_path, 'rb') as config_f:
+            C = pickle.load(config_f)
+        print("Resume Training on epoch", C.current_epoch + 1)
+
+        return C
 
     # pass the settings from the command line, and persist them in the config object
     C = Config()

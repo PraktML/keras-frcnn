@@ -27,7 +27,10 @@ parser.add_option("-i", "--image_folder", dest="image_folder",
                   help="Prefixes to paths provided in the .txt from -p (only relevant for simple parser), " +
                        "last character has to be a '/'",
                   default="images/")
-parser.add_option("-r", "--output_folder", dest="output_folder",
+parser.add_option("-r", "--resume", dest="resume_config",
+                  help="Provide Path to folder or direct path to a config.pickle file")
+
+parser.add_option("--run", "--output_folder", dest="output_folder",
                   help="Specifies the folder that config etc is written into, if not provided " +
                        "will create new folder under runs/date-time/", )
 
@@ -57,6 +60,7 @@ parser.add_option("--input_weight_path", dest="input_weight_path",
 parser.add_option("--verbose", dest="verbose",
                   help="Additional Output is shown, possible values 0 or 1.",
                   default='0')
+
 
 C = config.create_config_read_parser(parser)
 
@@ -142,22 +146,12 @@ model_classifier.compile(optimizer=optimizer_classifier,
                          metrics={'dense_class_{}'.format(len(classes_count)): 'accuracy'})
 model_all.compile(optimizer='sgd', loss='mae')
 
-
-
-config_output_filename = C.output_folder + C.config_filename
-with open(config_output_filename, 'wb') as config_f:
-    pickle.dump(C, config_f, protocol=2)  # pickle version 2 so can be read by Python 2
-    print('Config has been written to {}, and can be loaded when testing to ensure correct results'.format(
-        config_output_filename))
-with open(C.output_folder + "config.json", 'w') as configjson:
-    json.dump(vars(C), configjson)
 with open(C.output_folder + "splits.pickle", 'wb') as splits_f:
     splits = {filename: all_imgs_dict[filename]['imageset'] for filename in all_imgs_dict}
     pickle.dump(splits, splits_f)
 del all_imgs_dict
 
 iter_num = 0
-
 losses = np.zeros((C.epoch_length, 5))
 rpn_accuracy_rpn_monitor = []
 rpn_accuracy_for_epoch = []
@@ -168,7 +162,7 @@ best_loss = np.Inf
 class_mapping_inv = {v: k for k, v in class_mapping.items()}
 print('Starting training', "verbose" if C.verbose else "")
 
-for epoch_num in range(C.num_epochs):
+for epoch_num in range(C.current_epoch, C.num_epochs):
 
     progbar = generic_utils.Progbar(C.epoch_length)
     print('Epoch {}/{}'.format(epoch_num + 1, C.num_epochs))
@@ -291,5 +285,17 @@ for epoch_num in range(C.num_epochs):
         except Exception as e:
             print('Exception: {}'.format(e))
             continue
+
+    #with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
+    #    epoch_f.write(epoch_num)
+    C.current_epoch = epoch_num + 1
+    config_output_filename = C.output_folder + C.config_filename
+    with open(config_output_filename, 'wb') as config_f:
+        pickle.dump(C, config_f, protocol=2)  # pickle version 2 so can be read by Python 2
+        print('Config has been written to {}, and can be loaded when testing to ensure correct results'.format(
+            config_output_filename))
+    with open(C.output_folder + "config.json", 'w') as configjson:
+        json.dump(vars(C), configjson)
+
 
 print('Training complete, exiting.')
