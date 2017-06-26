@@ -54,7 +54,8 @@ def get_data(input_path, image_folder='', train_test_split=None):
 
                 print("Simple Parser: read", scripts.settings.PROJECTS_BASEPATH + filename)
                 img = cv2.imread(filename)
-
+                if img is None:
+                    raise(FileNotFoundError(filename))
                 (rows, cols) = img.shape[:2]
                 all_imgs[filename]['filepath'] = filename
                 all_imgs[filename]['width'] = cols

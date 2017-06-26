@@ -56,7 +56,6 @@ def format_img_size(img, C):
     """ formats the image size based on config """
     img_min_side = float(C.im_size)
     (height, width, _) = img.shape
-
     if width <= height:
         ratio = img_min_side / width
         new_height = int(ratio * height)
@@ -66,6 +65,8 @@ def format_img_size(img, C):
         new_width = int(ratio * width)
         new_height = int(img_min_side)
     img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+    print("ratio=", ratio)
+
     return img, ratio
 
 

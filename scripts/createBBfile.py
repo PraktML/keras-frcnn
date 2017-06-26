@@ -11,21 +11,33 @@ LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
 #OUTPUT_FILE = settings.PROJECTS_BASEPATH + "keras-frcnn/annotations/"
 OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
-OUTPUT_FILE += "bb_1A.txt"
+OUTPUT_FILE += "bb_limit.txt"
 TARGET_PATH = ""  # no spaces possible here!
-TARGET_NUMBER_FORMAT = '%05d'
-TARGET_SUFFIX = '.png'
+TARGET_NUMBER_FORMAT = '%06d'
+TARGET_SUFFIX = '.bmp'
 
+shots_meta = [
+    {"name": "1A", "from": 0, "to":8000, "offset": 0},
+    {"name": "1B", "from": 0, "to":8000, "offset": -2},
+    {"name": "2A", "from": 0, "to": 8000, "offset": 0},
+    {"name": "2B", "from": 0, "to": 8000, "offset": -2},
+    {"name": "3A", "from": 0, "to": 8000, "offset": 1},
+    {"name": "3B", "from": 0, "to": 7000, "offset": -2},
+    {"name": "4A", "from": 0, "to": 8000, "offset": 0},
+ #   {"name": "4B", "from": 0, "to": 8000, "offset": 0},
+    {"name": "5A", "from": 0, "to": 8000, "offset": 2},
+ #   {"name": "5B", "from": 0, "to": 8000, "offset": 0},
+]
 counter = 0
 with open(OUTPUT_FILE, 'w+') as outfile:
     fieldnames = ["filepath", "x1", "y1", "x2", "y2", "class_name"]
     csvwriter = csv.DictWriter(outfile, fieldnames=fieldnames, delimiter=',', lineterminator='\n')
     print("write to", OUTPUT_FILE)
 
-    for shot_name in ["1A"]:#, "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]:
+    for shot in shots_meta:
         if counter == 'break': break
-        print("processing shot", shot_name)
-        anno_file = settings.SHOTS_FOLDER + shot_name + "_annotations.txt"
+        print("processing shot", shot['name'])
+        anno_file = settings.SHOTS_FOLDER + shot['name'] + "_annotations.txt"
         if not os.path.isfile(anno_file):
             print("Annotation File:", anno_file, "doesn't exist, skip")
             continue
@@ -38,6 +50,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                         print("Successfully finished after", counter, "entries")
                         counter = 'break'
                         break
+
                 try:
                     (carId, frame,
                      upperPointShort_x, upperPointShort_y,      #red
@@ -52,7 +65,12 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 except ValueError:
                     print("Warning: invalid line in:", line)
                     continue
-                frame_path = TARGET_PATH + shot_name + "/" + shot_name + "_" + TARGET_NUMBER_FORMAT % frame + TARGET_SUFFIX
+
+                if frame < shot['from']:
+                    continue
+                if frame > shot['to']:
+                    break
+                frame_path = TARGET_PATH + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT % frame + TARGET_SUFFIX
 
                 # outer boundingbox: top left and bottom right corner
                 # (green_x, cyan_y) - (red_x, black_y)

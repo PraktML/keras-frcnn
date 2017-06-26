@@ -21,8 +21,8 @@ import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
 from keras.callbacks import TensorBoard
 
-# IMAGE_FOLDER = scripts.settings.SHOTS_FOLDER
-IMAGE_FOLDER = "images/"
+IMAGE_FOLDER = scripts.settings.SHOTS_FOLDER
+# IMAGE_FOLDER = "images/"
 
 
 sys.setrecursionlimit(40000)
@@ -208,8 +208,8 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     print(
                         'RPN is not producing bounding boxes that overlap the ground truth boxes. Check RPN settings or keep training.')
 
-            X, Y, img_data = next(data_gen_train)
-
+            X, Y, img_data = next(data_gen_train) # x_img, [y_rpn_cls, y_rpn_regr], img_data_aug
+                                        # shape            (1,38,67,18)
             loss_rpn = model_rpn.train_on_batch(X, Y)
 
             P_rpn = model_rpn.predict_on_batch(X)
@@ -223,7 +223,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             if X2 is None:
                 rpn_accuracy_rpn_monitor.append(0)
                 rpn_accuracy_for_epoch.append(0)
-                continue
+                continue # if no regions are found train again.
 
             neg_samples = np.where(Y1[0, :, -1] == 1)
             pos_samples = np.where(Y1[0, :, -1] == 0)
@@ -242,7 +242,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             rpn_accuracy_for_epoch.append((len(pos_samples)))
 
             if C.num_rois > 1:
-                if len(pos_samples) < C.num_rois // 2:
+                if len(pos_samples) < C.num_rois // 2: # usually half are positive and half are negative examples
                     selected_pos_samples = pos_samples.tolist()
                 else:
                     selected_pos_samples = np.random.choice(pos_samples, C.num_rois // 2, replace=False).tolist()
@@ -275,11 +275,20 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
 
             iter_num += 1
 
+            #
+            #           x_roi         y_cls, y_reg
+            #
+            #             X->    RPN -->  Y             X  ->   CLASS  ->   Y1     y_class_num
+            #             |               |             X2 ->    NET   ->   Y2     [y_class_reg_label, y_class_reg_coords]
+            #             |               |
+            #             -------------------helper--->X2,Y1,Y2
+
             progbar.update(iter_num,
                            [('rpn_cls', np.mean(losses[:iter_num, 0])), ('rpn_regr', np.mean(losses[:iter_num, 1])),
                             ('detector_cls', np.mean(losses[:iter_num, 2])),
                             ('detector_regr', np.mean(losses[:iter_num, 3]))])
 
+            # end of epoch, will break the while true loop in this if statement.
             if iter_num == C.epoch_length:
                 loss_rpn_cls = np.mean(losses[:, 0])
                 loss_rpn_regr = np.mean(losses[:, 1])
@@ -287,10 +296,17 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 loss_class_regr = np.mean(losses[:, 3])
                 class_acc = np.mean(losses[:, 4])
 
-
                 mean_overlapping_bboxes = float(sum(rpn_accuracy_for_epoch)) / len(rpn_accuracy_for_epoch)
                 rpn_accuracy_for_epoch = []
 
+
+                # for X, Y, img_data in data_gen_val:
+                #
+                #     outs = test_helper.test_picture(X, C, model_rpn=model_rpn, model_classifier_only=model_classifier,
+                #                              visual_output=False, class_mapping=class_mapping)
+                #     print ("got:", outs)
+                #     print ("target:", Y)
+                #     break
 
 
 
@@ -316,8 +332,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     best_loss = curr_loss
                     model_all.save_weights(model_path)
 
-
-                TC.on_epoch_end(epoch_num, {
+                log ={
                     "Classification Accuracy": class_acc,
                     "Mean # of BB from RPN overlapping with ground truthboxes": mean_overlapping_bboxes,
                     "Total Loss": curr_loss,
@@ -325,7 +340,10 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     "Loss RPN Regression": loss_rpn_regr,
                     "Loss Classifier-Net Classification": loss_class_cls,
                     "Loss Classifier-Net Regression": loss_class_regr
-                })
+                }
+                print(log)
+                TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
+#                TC.on_epoch_end(epoch_num, log)
                 break
 
         except Exception as e:
