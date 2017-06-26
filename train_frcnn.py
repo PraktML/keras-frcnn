@@ -5,9 +5,10 @@ import sys
 import time
 import numpy as np
 from optparse import OptionParser
+import os
 import pickle
 import json
-import traceback
+import scripts.settings
 
 from keras import backend as K
 from keras.optimizers import Adam, SGD, RMSprop
@@ -18,8 +19,10 @@ from keras_frcnn import losses as losses
 from keras_frcnn import resnet as nn
 import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
+from keras.callbacks import TensorBoard
 
-IMAGE_FOLDER = "" # currently the file has a prefix of 'images/'
+IMAGE_FOLDER = scripts.settings.SHOTS_FOLDER
+
 sys.setrecursionlimit(40000)
 parser = OptionParser()
 
@@ -40,9 +43,6 @@ parser.add_option("--input_weight_path", dest="input_weight_path",
                   help="Input path for weights. If not specified, will try to load default weights provided by keras.")
 
 
-
-
-
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
                   default='simple')  # '#default="pascal_voc"),
 parser.add_option("-n", "--num_rois", dest="num_rois",
@@ -56,12 +56,14 @@ parser.add_option("--rot", "--rot_90", dest="rot_90",
                   help="Augment with 90 degree rotations in training. (Default=false).",
                   action="store_true", default=False)
 parser.add_option("--num_epochs", dest="num_epochs", help="Number of epochs.",
+                  default=1000)  # 2000
+parser.add_option("--epoch_length", dest="epoch_length", help="Number of batches in an epoch",
                   default=100)  # 2000
-parser.add_option("--epochs_length", dest="epoch_length", help="Number of batches in an epoch",
-                  default=10)  # 2000
 parser.add_option("--verbose", dest="verbose",
                   help="Additional Output is shown, possible values 0 or 1.",
                   default='0')
+parser.add_option("--store", dest="store",
+                  help="how is the output stored 'tensorboard', 'txt'")
 
 
 C = config.create_config_read_parser(parser)
@@ -73,7 +75,16 @@ elif C.parser == 'simple':
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 
-all_imgs_dict, classes_count, class_mapping = get_data(C.train_path, image_folder=IMAGE_FOLDER)
+splits = None
+# if the splits already exist, we will load them in
+# delete this file if you are a different amount of pictures now
+if os.path.exists(C.output_folder+"splits.pickle"):
+    with open(C.output_folder+"splits.pickle", 'rb') as splits_f:
+        splits = pickle.load(splits_f)
+
+
+all_imgs_dict, classes_count, class_mapping = get_data(
+    C.train_path, image_folder=IMAGE_FOLDER, train_test_split=splits)
 all_imgs = []
 for key in all_imgs_dict:
     all_imgs.append(all_imgs_dict[key])
@@ -125,6 +136,13 @@ classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(
 model_rpn = Model(img_input, rpn[:2])
 model_classifier = Model([img_input, roi_input], classifier)
 
+
+log_path = C.output_folder + "logs/"
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
+TC = TensorBoard(log_dir=log_path)
+TC.set_model(model_classifier)
+
 # this is a model that holds both the RPN and the classifier, used to load/save weights for the models
 # is not trained itself!
 model_all = Model([img_input, roi_input], rpn[:2] + classifier)
@@ -155,7 +173,10 @@ model_all.compile(optimizer='sgd', loss='mae')
 
 with open(C.output_folder + "splits.pickle", 'wb') as splits_f:
     splits = {filename: all_imgs_dict[filename]['imageset'] for filename in all_imgs_dict}
-    pickle.dump(splits, splits_f)
+    if C.verbose:
+        print("saving splits file with", len(splits), "entries")
+        print(splits)
+    pickle.dump(splits, splits_f, protocol=2)
 del all_imgs_dict
 
 iter_num = 0
@@ -264,6 +285,8 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 loss_class_regr = np.mean(losses[:, 3])
                 class_acc = np.mean(losses[:, 4])
 
+                TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
+
                 mean_overlapping_bboxes = float(sum(rpn_accuracy_for_epoch)) / len(rpn_accuracy_for_epoch)
                 rpn_accuracy_for_epoch = []
 
@@ -308,5 +331,5 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
     with open(C.output_folder + "config.json", 'w') as configjson:
         json.dump(vars(C), configjson)
 
-
+TC.on_train_end()
 print('Training complete, exiting.')

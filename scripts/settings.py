@@ -9,3 +9,6 @@ else: # on linux
     PLATTE_BASEPATH = "/media/florian/PLATTE/programmieren/"
     PROJECTS_BASEPATH = "/media/florian/Windows8_OS/Users/Florian/PycharmProjects/"
     FZI_DATASETS = "/disk/ml/datasets/"
+
+SHOTS_FOLDER = PLATTE_BASEPATH + "VehicleReId/video_shots/"
+

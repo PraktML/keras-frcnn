@@ -4,6 +4,7 @@ import numpy as np
 
 
 def get_data(input_path, image_folder='', train_test_split=None):
+    assert image_folder=='' or image_folder[-1] == '/'
     found_bg = False
     all_imgs = {}
 
@@ -13,10 +14,20 @@ def get_data(input_path, image_folder='', train_test_split=None):
 
     visualise = True
 
+
+
     with open(input_path, 'r') as f:
 
-        print('Parsing annotation files')
-
+        # # check if the right splits file is provided
+        # if train_test_split is not None:
+        #     count_bb = sum(1 for _ in f)
+        #     if len(train_test_split)!=count_bb:
+        #         input("Length of splits file {} and # of bounding box entries {} don't match, "
+        #               "if you press enter the splits file will be ignored".format(len(train_test_split),count_bb))
+        #         train_test_split = None
+        # print('Parsing annotation files')
+        # f.seek(0)
+        idx = 0
         for line in f:
             line_split = line.strip().split(',')
             (filename, x1, y1, x2, y2, class_name) = line_split
@@ -55,9 +66,10 @@ def get_data(input_path, image_folder='', train_test_split=None):
                     else:
                         all_imgs[filename]['imageset'] = 'test'
                 else:
-                    print("Loading Train/Test split from file")
                     all_imgs[filename]['imageset'] = train_test_split[filename]
 
+            print(idx, "append to", filename, ".")
+            idx+=1
             all_imgs[filename]['bboxes'].append(
                 {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
 

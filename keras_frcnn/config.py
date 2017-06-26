@@ -80,7 +80,8 @@ def create_config_read_parser(parser):
     (options, args) = parser.parse_args()
 
     # resume training with old configuration
-    run_path = options.resume_run
+    run_path = options.resume_run if options.resume_run != '.last' else "runs/"+sorted(os.listdir("runs/"))[-1] +"/"
+    print("Resuming from", run_path)
     if run_path:
         if run_path[-1] != '/':
             run_path += '/'
@@ -88,7 +89,18 @@ def create_config_read_parser(parser):
             C = pickle.load(config_f)
         C.output_folder = run_path
         C.load_model = run_path + C.model_name
-        print("Resume Training on epoch", C.current_epoch + 1)
+        if C.verbose:
+            print("Resume Training on epoch", C.current_epoch + 1)
+        if options.num_epochs:
+            C.num_epochs = int(options.num_epochs)
+            print("Reset #epochs to", C.num_epochs)
+        if options.epoch_length:
+            C.epoch_length = int(options.epoch_length)
+            print("Reset epoch_length to", C.epoch_length)
+        if options.train_path:
+            C.train_path = options.train_path
+            print("Reset train_path to", C.train_path)
+
 
         return C
 
