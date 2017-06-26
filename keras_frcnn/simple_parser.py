@@ -1,5 +1,6 @@
 from __future__ import print_function
 import cv2
+import scripts.settings
 import numpy as np
 
 
@@ -48,9 +49,10 @@ def get_data(input_path, image_folder='', train_test_split=None):
                 class_mapping[class_name] = len(class_mapping)
 
             if filename not in all_imgs:
+                #each image file is only read in once, but there will be several BB in it.
                 all_imgs[filename] = {}
 
-                print("Simple Parser: read", filename)
+                print("Simple Parser: read", scripts.settings.PROJECTS_BASEPATH + filename)
                 img = cv2.imread(filename)
 
                 (rows, cols) = img.shape[:2]
@@ -59,7 +61,7 @@ def get_data(input_path, image_folder='', train_test_split=None):
                 all_imgs[filename]['height'] = rows
                 all_imgs[filename]['bboxes'] = []
 
-                # load a data split form the provided file
+                # determine if the file will be test or training data
                 if train_test_split is None:
                     if np.random.randint(0, 6) > 0:
                         all_imgs[filename]['imageset'] = 'trainval'
@@ -72,10 +74,6 @@ def get_data(input_path, image_folder='', train_test_split=None):
             idx+=1
             all_imgs[filename]['bboxes'].append(
                 {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
-
-#    all_data = []
-#    for key in all_imgs:
-#        all_data.append(all_imgs[key])
 
     # make sure the bg class is last in the list
     if found_bg:

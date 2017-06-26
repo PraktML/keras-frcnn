@@ -53,7 +53,7 @@ def read_vehicleReId():
                     continue
 
                 img = cv2.imread(frame_path)
-                print(frame_path, img)
+                # print(frame_path, img)
                 img = cv2.circle(img, (int(upperPointShort_x), int(upperPointShort_y)), 5, color=(0,0,255), thickness=2) # red
                 img = cv2.circle(img, (int(upperPointCorner_x), int(upperPointCorner_y)), 5, color=(0,255,255), thickness=2)  # yellow
                 img = cv2.circle(img, (int(upperPointLong_x), int(upperPointLong_y)), 5, color=(255,255,255), thickness=2)  # white
@@ -83,38 +83,32 @@ def read_vehicleReId():
                 #    In my first step it only seems necessary to teach the net to some sides of this cube
                 #
 
-
-
-
-
-
+            outfile = "inferred/" + str(frame_no) + ".bmp"
+            print("write to", outfile)
 
             #
             #cv2.imshow(frame_path, img)
             #cv2.waitKey(0)
             #cv2.destroyAllWindows()
 
-            cv2.imwrite("inferred/"+str(frame_no)+".bmp", img)
+            cv2.imwrite(outfile, img)
 
-BB_FILE = "bb_test.txt"
+BB_FILE = "bb_1A.txt"
 FRAME_PATHS = ["1B/1B_001804.bmp", "1B/1B_001916.bmp",
                "1B/1B_001926.bmp"]
 
 
 def read_bbfile():
     with open("../annotations/"+ BB_FILE) as file:
-        fig,ax = plt.subplots(1)
         for frame_path in FRAME_PATHS:
-            fig, ax = plt.subplots(1)
 
             print("analyze", frame_path)
             file.seek(0)
             reader = csv.reader(file, delimiter=',')
-            # print(reader)
+
             full_frame_path = scripts.settings.SHOTS_FOLDER + frame_path
-            #img = cv2.imread(full_frame_path)
-            im = np.array(Image.open(full_frame_path), dtype=np.uint8)
-            #ax.imshow(im)
+            img = cv2.imread(full_frame_path)
+
             for row in reader:
                 try:
                     (
@@ -140,10 +134,8 @@ def read_bbfile():
                     color = (255, 0,0)
                     c = 'g'
 
-                #img = cv2.rectangle(img, (int(x1),int(y1)), (int(x2),int(y2)), color=color, thickness=5)
-                ax.add_patch(
-                    patches.Rectangle((int(x1), int(y1)), int(x2)-int(x1), int(y2)-int(y1), edgecolor=c,facecolor=None)
-                )
+                img = cv2.rectangle(img, (int(x1),int(y1)), (int(x2),int(y2)), color=color, thickness=5)
+
 
 
                 #img = cv2.circle(img, (int(x1), int(y1)), 5, color=color,
@@ -169,7 +161,9 @@ def read_bbfile():
                 #       (0,y)
                 #
                 #    In my first step it only seems necessary to teach the net to some sides of this cube
-                #
+                #    FRONTBB: yellow_x, red y --> blue_x, black_y
+                #    SIDEBB:  ...
+                #    OUTERBB:
 
             #
             plt.show()
@@ -178,10 +172,10 @@ def read_bbfile():
             if not os.path.exists(out_path[:out_path.rfind("/")]):
                 print("created folder")
                 os.makedirs(out_path[:out_path.rfind("/")])
-            cv2.imshow(frame_path, img)
+            #cv2.imshow(frame_path, img)
             #cv2.waitKey(0)
             # cv2.destroyAllWindows()
-#            cv2.imwrite(out_path, img)
+            cv2.imwrite(out_path, img)
 
 if IS_VEHICLE:
     read_vehicleReId()

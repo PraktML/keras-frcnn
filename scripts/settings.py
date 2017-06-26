@@ -12,3 +12,7 @@ else: # on linux
 
 SHOTS_FOLDER = PLATTE_BASEPATH + "VehicleReId/video_shots/"
 
+#PATH_VEHICLEREID = "/disk/ml/datasets/VehicleReId/"
+#PATH_CITYSCAPES = "/disk/ml/datasets/cityscapes/"
+#PATH_BOXCARS = "/disk/ml/datasets/BoxCars21k/"
+

@@ -21,7 +21,9 @@ import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
 from keras.callbacks import TensorBoard
 
-IMAGE_FOLDER = scripts.settings.SHOTS_FOLDER
+# IMAGE_FOLDER = scripts.settings.SHOTS_FOLDER
+IMAGE_FOLDER = "images/"
+
 
 sys.setrecursionlimit(40000)
 parser = OptionParser()
@@ -285,10 +287,12 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 loss_class_regr = np.mean(losses[:, 3])
                 class_acc = np.mean(losses[:, 4])
 
-                TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
 
                 mean_overlapping_bboxes = float(sum(rpn_accuracy_for_epoch)) / len(rpn_accuracy_for_epoch)
                 rpn_accuracy_for_epoch = []
+
+
+
 
                 if C.verbose:
                     print('Mean number of bounding boxes from RPN overlapping ground truth boxes: {}'.format(
@@ -312,6 +316,16 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     best_loss = curr_loss
                     model_all.save_weights(model_path)
 
+
+                TC.on_epoch_end(epoch_num, {
+                    "Classification Accuracy": class_acc,
+                    "Mean # of BB from RPN overlapping with ground truthboxes": mean_overlapping_bboxes,
+                    "Total Loss": curr_loss,
+                    'Loss RPN Classifier': loss_rpn_cls,
+                    "Loss RPN Regression": loss_rpn_regr,
+                    "Loss Classifier-Net Classification": loss_class_cls,
+                    "Loss Classifier-Net Regression": loss_class_regr
+                })
                 break
 
         except Exception as e:

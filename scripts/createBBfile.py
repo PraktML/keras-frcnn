@@ -5,20 +5,16 @@ import scripts.settings as settings
 """ Convert the notations form the following datasets to be used with Keras-frcnn in the simple data reader mode
 the 3D bounding boxes form VehicleReI dinto a front and a back bounding box. """
 
-#PATH_VEHICLEREID = "/disk/ml/datasets/VehicleReId/"
-PATH_VEHICLEREID = settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
-#PATH_CITYSCAPES = "/disk/ml/datasets/cityscapes/"
-#PATH_BOXCARS = "/disk/ml/datasets/BoxCars21k/"
 
 LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
 
 #OUTPUT_FILE = settings.PROJECTS_BASEPATH + "keras-frcnn/annotations/"
 OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
-OUTPUT_FILE += "bb_all.txt"
+OUTPUT_FILE += "bb_1A.txt"
 TARGET_PATH = ""  # no spaces possible here!
-TARGET_NUMBER_FORMAT = '%06d'
-TARGET_SUFFIX = '.bmp'
+TARGET_NUMBER_FORMAT = '%05d'
+TARGET_SUFFIX = '.png'
 
 counter = 0
 with open(OUTPUT_FILE, 'w+') as outfile:
@@ -26,10 +22,10 @@ with open(OUTPUT_FILE, 'w+') as outfile:
     csvwriter = csv.DictWriter(outfile, fieldnames=fieldnames, delimiter=',', lineterminator='\n')
     print("write to", OUTPUT_FILE)
 
-    for shot_name in ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]:
+    for shot_name in ["1A"]:#, "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]:
         if counter == 'break': break
         print("processing shot", shot_name)
-        anno_file = PATH_VEHICLEREID + shot_name + "_annotations.txt"
+        anno_file = settings.SHOTS_FOLDER + shot_name + "_annotations.txt"
         if not os.path.isfile(anno_file):
             print("Annotation File:", anno_file, "doesn't exist, skip")
             continue
@@ -78,7 +74,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 # (white_x, white_y) - (black_x, black_y)
                 csvwriter.writerow({
                     "filepath": frame_path,
-                    "x1": corner_x,        "y1": upperPointShort_y,
-                    "x2": upperPointShort_x, "y2": corner_y,
+                    "x1": upperPointLong_x, "y1": upperPointLong_y,
+                    "x2": corner_x, "y2": corner_y,
                     "class_name": "sideBB"
                 })
