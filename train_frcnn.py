@@ -21,7 +21,7 @@ import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
 from keras.callbacks import TensorBoard
 
-IMAGE_FOLDER = scripts.settings.SHOTS_FOLDER
+IMAGE_FOLDER = scripts.settings.PLATTE_BASEPATH
 # IMAGE_FOLDER = "images/"
 
 

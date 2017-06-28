@@ -52,7 +52,7 @@ def get_data(input_path, image_folder='', train_test_split=None):
                 #each image file is only read in once, but there will be several BB in it.
                 all_imgs[filename] = {}
 
-                print("Simple Parser: read", scripts.settings.PROJECTS_BASEPATH + filename)
+                print("Simple Parser: read", filename)
                 img = cv2.imread(filename)
                 if img is None:
                     raise(FileNotFoundError(filename))

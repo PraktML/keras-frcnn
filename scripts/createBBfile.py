@@ -12,7 +12,7 @@ LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
 
 OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
-OUTPUT_FILE += "bb_both.txt"
+OUTPUT_FILE += "bb_boxcar.txt"
 
 TARGET_PATH_VRI = "VehicleReId/video_shots/"  # no spaces possible here!
 TARGET_NUMBER_FORMAT_VRI = '%06d'
@@ -88,6 +88,14 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     "x1": upperPointLong_x, "y1": upperPointLong_y,
                     "x2": corner_x, "y2": corner_y,
                     "class_name": "side"
+                })
+                # (top) side boundingbox: described by white and black
+                # (white_x, cyan_y) - (red_x, yellow_y)
+                csvwriter.writerow({
+                    "filepath": frame_path,
+                    "x1": upperPointLong_x, "y1": crossCorner_y,
+                    "x2": upperPointShort_x, "y2": upperPointCorner_y,
+                    "class_name": "top"
                 })
 
     with open(settings.BOXCARS_FOLDER + "json_data/dataset.json") as jsonfile:
