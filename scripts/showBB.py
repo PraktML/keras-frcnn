@@ -13,6 +13,11 @@ import matplotlib.image as mpimg
 """
 Evaluate the data format of VehicleReID
 """
+
+#SHOTS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]
+OUT_FOLDER = scripts.settings.SHOTS_FOLDER + "visualize/"
+RANDOM_SAMPLES = 20
+
 CHECKED_FRAMES = [
     {"name": "1A", "frames": [1862, 2496, 3016]},
     {"name": "1B", "frames": [1800, 7402, 10300]},
@@ -26,12 +31,96 @@ CHECKED_FRAMES = [
     {"name": "5B", "frames": [804, 4390, 14238, 14372]},
 
 ]
-ANNOTATIONS_FILE = "1B_annotations.txt"
-FILE_PREFIX = "1B/1B_"
 NUMBER_FORMAT = "%06d"
 FILE_SUFFIX = ".bmp"
 
 IS_VEHICLE = True
+
+
+def read_vehReID_random():
+    for shot in CHECKED_FRAMES:
+        print("analzye shot", shot)
+        name = shot['name']
+        with open(scripts.settings.SHOTS_FOLDER + name + "_annotations.txt") as file:
+            entries = list(csv.reader(file, delimiter=','))
+
+        sample_frame_indexes = np.random.choice(range(1,len(entries)), RANDOM_SAMPLES, replace=True)
+        sample_frames = shot['frames'] + [int(entries[idx][1]) for idx in sample_frame_indexes]
+
+        for sample in sample_frames:
+            frame_path = scripts.settings.SHOTS_FOLDER + name + '/' + name + "_" + NUMBER_FORMAT % sample + FILE_SUFFIX
+            print("analyze", name, sample, "from:", frame_path)
+
+            entries_for_sample = []
+            img = cv2.imread(frame_path)
+            if img is None:
+                print("THIS FILE DOESN'T EXIST:", frame_path)
+                continue
+
+            for entry in entries:
+                if len(entry) > 1 and int(entry[1]) == sample:
+                    entries_for_sample.append(entry)
+
+            for entry in entries_for_sample:
+                try:
+                    (
+                        carId, frame,
+                        upperPointShort_x, upperPointShort_y,
+                        upperPointCorner_x, upperPointCorner_y,
+                        upperPointLong_x, upperPointLong_y,
+                        crossCorner_x, crossCorner_y,
+                        shortSide_x, shortSide_y,
+                        corner_x, corner_y,
+                        longSide_x, longSide_y,
+                        lowerCrossCorner_x, lowerCrossCorner_y
+                    ) = entry
+                except ValueError:
+                    continue
+
+                img = cv2.circle(img, (int(upperPointShort_x), int(upperPointShort_y)), 5, color=(0, 0, 255),
+                                 thickness=2)  # red
+                img = cv2.circle(img, (int(upperPointCorner_x), int(upperPointCorner_y)), 5, color=(0, 255, 255),
+                                 thickness=2)  # yellow
+                img = cv2.circle(img, (int(upperPointLong_x), int(upperPointLong_y)), 5, color=(255, 255, 255),
+                                 thickness=2)  # white
+                img = cv2.circle(img, (int(crossCorner_x), int(crossCorner_y)), 5, color=(255, 255, 0),
+                                 thickness=2)  # cyan
+                img = cv2.circle(img, (int(shortSide_x), int(shortSide_y)), 5, color=(255, 0, 0),
+                                 thickness=2)  # blue
+                img = cv2.circle(img, (int(corner_x), int(corner_y)), 5, color=(0, 0, 0), thickness=2)  # black
+                img = cv2.circle(img, (int(longSide_x), int(longSide_y)), 5, color=(0, 255, 0),
+                                 thickness=2)  # green
+                img = cv2.circle(img, (int(lowerCrossCorner_x), int(lowerCrossCorner_y)), 5, color=(255, 0, 255),
+                                 thickness=2)  # purple
+
+                #################### MEANING OF THE COLORS/ANNOTATIONS ##########################
+                # The cars are always in this angle
+                #
+                #       (0,0) >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  (x,0)
+                #         v
+                #         v        cyan  ~~~~~~~~~~
+                #         v        /                ~~~~~~~~~~ red
+                #         v   white  ~~~~~~~~~~               /  |
+                #         v     |              ~~~~~~~~~~ yellow |
+                #         v     |                           |    |
+                #         v     |                           |    |
+                #         v     |  purple                   |    |
+                #         v     | /                         |   blue
+                #         v   green  ~~~~~~~~~              |   /
+                #         v                    ~~~~~~~~~~~~black
+                #       (0,y)
+                #
+                #    In my first step it only seems necessary to teach the net to some sides of this cube
+                #
+
+            out_path = OUT_FOLDER + name + "/" + str(sample) + ".bmp"
+            print("write to", out_path)
+            if not os.path.exists(out_path[:out_path.rfind("/")]):
+                print("created folder")
+                os.makedirs(out_path[:out_path.rfind("/")])
+
+            cv2.imwrite(out_path, img)
+
 
 
 def read_vehicleReId():
@@ -104,91 +193,5 @@ def read_vehicleReId():
 
                     cv2.imwrite(outfile, img)
 
-BB_FILE = "bb_1A.txt"
-FRAME_PATHS = ["1B/1B_001804.bmp", "1B/1B_001916.bmp",
-               "1B/1B_001926.bmp"]
-
-
-def read_bbfile():
-    with open("../annotations/"+ BB_FILE) as file:
-        for frame_path in FRAME_PATHS:
-
-            print("analyze", frame_path)
-            file.seek(0)
-            reader = csv.reader(file, delimiter=',')
-
-            full_frame_path = scripts.settings.SHOTS_FOLDER + frame_path
-            img = cv2.imread(full_frame_path)
-
-            for row in reader:
-                try:
-                    (
-                       path,
-                       x1, y1,
-                       x2, y2,
-                       name
-                    ) = row
-                except ValueError:
-                    print("invalid line", row)
-                    continue
-
-                if frame_path != path:
-                    continue
-                color = (0, 0, 255)
-                if name == 'frontBB':
-                    color = (255, 255, 0)
-                    c = 'r'
-                elif name == 'sideBB':
-                    color = (0, 255, 0)
-                    c= 'b'
-                elif name == 'outerBB':
-                    color = (255, 0,0)
-                    c = 'g'
-
-                img = cv2.rectangle(img, (int(x1),int(y1)), (int(x2),int(y2)), color=color, thickness=5)
-
-
-
-                #img = cv2.circle(img, (int(x1), int(y1)), 5, color=color,
-                #                 thickness=2)  # red
-                #img = cv2.circle(img, (int(x2), int(y2)), 5, color=color,
-                #                 thickness=2)  # yellow
-
-                #################### MEANING OF THE COLORS/ANNOTATIONS ##########################
-                # The cars are always in this angle
-                #
-                #       (0,0) >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  (x,0)
-                #         v
-                #         v        cyan  ~~~~~~~~~~
-                #         v        /                ~~~~~~~~~~ red
-                #         v   white  ~~~~~~~~~~               /  |
-                #         v     |              ~~~~~~~~~~ yellow |
-                #         v     |                           |    |
-                #         v     |                           |    |
-                #         v     |  purple                   |    |
-                #         v     | /                         |   blue
-                #         v   green  ~~~~~~~~~              |   /
-                #         v                    ~~~~~~~~~~~~black
-                #       (0,y)
-                #
-                #    In my first step it only seems necessary to teach the net to some sides of this cube
-                #    FRONTBB: yellow_x, red y --> blue_x, black_y
-                #    SIDEBB:  ...
-                #    OUTERBB:
-
-            #
-            plt.show()
-            out_path = "inferred/"+frame_path
-            print("write to", out_path)
-            if not os.path.exists(out_path[:out_path.rfind("/")]):
-                print("created folder")
-                os.makedirs(out_path[:out_path.rfind("/")])
-            #cv2.imshow(frame_path, img)
-            #cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-            cv2.imwrite(out_path, img)
-
 if IS_VEHICLE:
-    read_vehicleReId()
-else:
-    read_bbfile()
+    read_vehReID_random()

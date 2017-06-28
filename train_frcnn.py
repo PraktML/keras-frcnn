@@ -246,7 +246,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     selected_pos_samples = pos_samples.tolist()
                 else:
                     selected_pos_samples = np.random.choice(pos_samples, C.num_rois // 2, replace=False).tolist()
-                try:
+                try: # TODO: `neg_samples` was empty   File "mtrand.pyx", line 1121, in mtrand.RandomState.choice (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
                     selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                             replace=False).tolist()
                 except:
@@ -342,6 +342,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     "Loss Classifier-Net Regression": loss_class_regr
                 }
                 print(log)
+                C.stats.append((epoch_num,log))
                 TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
 #                TC.on_epoch_end(epoch_num, log)
                 break

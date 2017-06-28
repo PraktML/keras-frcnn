@@ -64,7 +64,7 @@ def get_data(input_path, image_folder='', train_test_split=None):
 
                 # determine if the file will be test or training data
                 if train_test_split is None:
-                    if np.random.randint(0, 6) > 0:
+                    if np.random.randint(0, 6) >= 0:
                         all_imgs[filename]['imageset'] = 'trainval'
                     else:
                         all_imgs[filename]['imageset'] = 'test'

@@ -11,7 +11,7 @@ LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
 #OUTPUT_FILE = settings.PROJECTS_BASEPATH + "keras-frcnn/annotations/"
 OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
-OUTPUT_FILE += "bb_limit.txt"
+OUTPUT_FILE += "bb_offset.txt"
 TARGET_PATH = ""  # no spaces possible here!
 TARGET_NUMBER_FORMAT = '%06d'
 TARGET_SUFFIX = '.bmp'
@@ -70,7 +70,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     continue
                 if frame > shot['to']:
                     break
-                frame_path = TARGET_PATH + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT % frame + TARGET_SUFFIX
+                frame_path = TARGET_PATH + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT % (frame + shot['offset'])+ TARGET_SUFFIX
 
                 # outer boundingbox: top left and bottom right corner
                 # (green_x, cyan_y) - (red_x, black_y)

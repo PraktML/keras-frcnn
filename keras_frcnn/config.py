@@ -16,7 +16,7 @@ class Config:
 
         self.current_epoch = 0 # number of current epoch (0 indexed)
                                # to pick up training later on.
-
+        self.stats = []
 
         # more verbose output in training and test
         self.verbose = True
