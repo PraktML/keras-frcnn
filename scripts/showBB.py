@@ -8,29 +8,20 @@ import matplotlib.patches as patches
 from PIL import Image
 import scripts.settings
 import matplotlib.image as mpimg
-
-
+import shutil
 """
 Evaluate the data format of VehicleReID
 """
 
 #SHOTS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]
 OUT_FOLDER = scripts.settings.SHOTS_FOLDER + "visualize/"
-RANDOM_SAMPLES = 20
+if os.path.exists(OUT_FOLDER):
+    shutil.rmtree(OUT_FOLDER)
+    os.makedirs(OUT_FOLDER)
 
-CHECKED_FRAMES = [
-    {"name": "1A", "frames": [1862, 2496, 3016]},
-    {"name": "1B", "frames": [1800, 7402, 10300]},
-    {"name": "2A", "frames": [1800, 7402, 12278, 12240, 12030]},
-    {"name": "2B", "frames": [1862, 4390, 9270, 9476, 9910]},
-    {"name": "3A", "frames": [1862, 922, 4896, 9388]},
-    {"name": "3B", "frames": [1862, 922, 4896]},
-    {"name": "4A", "frames": [806, 4390,8410, 8800,]},
-    {"name": "4B", "frames": [806, 4390, 7934, 8166]},
-    {"name": "5A", "frames": [804, 4390,17902, 18014]},
-    {"name": "5B", "frames": [804, 4390, 14238, 14372]},
+RANDOM_SAMPLES = 2
 
-]
+
 NUMBER_FORMAT = "%06d"
 FILE_SUFFIX = ".bmp"
 
@@ -38,17 +29,20 @@ IS_VEHICLE = True
 
 
 def read_vehReID_random():
-    for shot in CHECKED_FRAMES:
+    for shot in scripts.settings.FRAMES_VRI:
         print("analzye shot", shot)
         name = shot['name']
+        offset = shot['offset']
         with open(scripts.settings.SHOTS_FOLDER + name + "_annotations.txt") as file:
             entries = list(csv.reader(file, delimiter=','))
 
         sample_frame_indexes = np.random.choice(range(1,len(entries)), RANDOM_SAMPLES, replace=True)
         sample_frames = shot['frames'] + [int(entries[idx][1]) for idx in sample_frame_indexes]
 
+
+
         for sample in sample_frames:
-            frame_path = scripts.settings.SHOTS_FOLDER + name + '/' + name + "_" + NUMBER_FORMAT % sample + FILE_SUFFIX
+            frame_path = scripts.settings.SHOTS_FOLDER + name + '/' + name + "_" + NUMBER_FORMAT % (sample + offset) + FILE_SUFFIX
             print("analyze", name, sample, "from:", frame_path)
 
             entries_for_sample = []
@@ -112,8 +106,9 @@ def read_vehReID_random():
                 #
                 #    In my first step it only seems necessary to teach the net to some sides of this cube
                 #
+            cv2.line(img, (0, int(shot["sep_y"])), (2000, int(shot["sep_m"] * 2000 + shot["sep_y"])), (0,0,255), 4)
 
-            out_path = OUT_FOLDER + name + "/" + str(sample) + ".bmp"
+            out_path = OUT_FOLDER + name + "/" + str(sample) + "_" + str(offset) + ".bmp"
             print("write to", out_path)
             if not os.path.exists(out_path[:out_path.rfind("/")]):
                 print("created folder")
