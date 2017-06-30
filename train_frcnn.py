@@ -28,46 +28,6 @@ IMAGE_FOLDER = scripts.settings.PLATTE_BASEPATH
 sys.setrecursionlimit(40000)
 parser = OptionParser()
 
-parser.add_option("-p", "--path", dest="train_path",
-                  help="Path to .txt training data (in case of simple parser).")
-parser.add_option("-r", "--resume", dest="resume_run",
-                  help="Provide Path to folder or direct path to a config.pickle file")
-
-parser.add_option("--run", "--output_folder", dest="output_folder",
-                  help="Specifies the folder that config etc is written into, if not provided " +
-                       "will create new folder under runs/date-time/", )
-parser.add_option("--config_filename", dest="config_filename", help=
-"Location to store all the metadata related to the training (to be used when testing).",
-                  default="config.pickle")
-parser.add_option("--output_weight_path", dest="output_weight_path", help="Output path for weights.",
-                  default='model_frcnn.hdf5')
-parser.add_option("--input_weight_path", dest="input_weight_path",
-                  help="Input path for weights. If not specified, will try to load default weights provided by keras.")
-
-
-parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
-                  default='simple')  # '#default="pascal_voc"),
-parser.add_option("-n", "--num_rois", dest="num_rois",
-                  help="Number of ROIs per iteration. Higher means more memory use.",
-                  default=32)
-parser.add_option("--hf", dest="horizontal_flips", help="Augment with horizontal flips in training. (Default=false).",
-                  action="store_true", default=False)
-parser.add_option("--vf", dest="vertical_flips", help="Augment with vertical flips in training. (Default=false).",
-                  action="store_true", default=False)
-parser.add_option("--rot", "--rot_90", dest="rot_90",
-                  help="Augment with 90 degree rotations in training. (Default=false).",
-                  action="store_true", default=False)
-parser.add_option("--num_epochs", dest="num_epochs", help="Number of epochs.",
-                  default=1000)  # 2000
-parser.add_option("--epoch_length", dest="epoch_length", help="Number of batches in an epoch",
-                  default=100)  # 2000
-parser.add_option("--verbose", dest="verbose",
-                  help="Additional Output is shown, possible values 0 or 1.",
-                  default='0')
-parser.add_option("--store", dest="store",
-                  help="how is the output stored 'tensorboard', 'txt'")
-
-
 C = config.create_config_read_parser(parser)
 
 if C.parser == 'pascal_voc':
@@ -331,7 +291,14 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                             best_loss, curr_loss, model_path))
                     best_loss = curr_loss
                     model_all.save_weights(model_path)
-
+                try:
+                    if epoch_num % C.save_every:
+                        checkpoint_path = C.output_folder + "model_frcnn"+str(epoch_num)+".hdf5"
+                        print("saving weights of epoch:", epoch_num, "to", checkpoint_path)
+                        model_all.save_weights(checkpoint_path)
+                except:
+                    print("couldn't save checkpoint, did you specify 'save_every' in config?")
+                    pass
                 log ={
                     "Classification Accuracy": class_acc,
                     "Mean # of BB from RPN overlapping with ground truthboxes": mean_overlapping_bboxes,

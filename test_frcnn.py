@@ -1,12 +1,11 @@
 from __future__ import division
-import os
+import os, glob
 import cv2
 import numpy as np
 import sys
 import pickle
 from optparse import OptionParser
 import time
-from keras_frcnn import config
 import keras_frcnn.resnet as nn
 from keras import backend as K
 from keras.layers import Input
@@ -23,6 +22,7 @@ parser.add_option("-n", "--num_rois", dest="num_rois",
                   help="Number of ROIs per iteration. Higher means more memory use.") #, default=32)
 parser.add_option("--run", "--run_folder", dest="run_folder", help=
 "Location to read the metadata related to the training (generated when training).")
+parser.add_option("--model", dest="model", help="select which model to take (maybe there are ones from several epochs")
 
 (options, args) = parser.parse_args()
 
@@ -34,7 +34,6 @@ if not options.run_folder:  # if filename is not given
     run_folder = "runs/"+str(run_list[int(input("Enter number: "))] + "/")
 else:
     run_folder = options.run_folder + "" if options.run_folder[-1] == '/' else '/'
-
 config_output_filename = run_folder + "config.pickle"
 
 with open(config_output_filename, 'rb') as f_in:
@@ -43,6 +42,20 @@ with open(config_output_filename, 'rb') as f_in:
 results_folder = run_folder + "results_imgs/"
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
+
+model_list = glob.glob(run_folder+"*.hdf5")
+if not options.model and len(model_list)>1:
+    print("There are several possible models to load, choose:")
+    run_list = sorted(model_list)
+    for idx, model_name in enumerate(model_list):
+        print("[{}] {}".format(idx, model_name))
+    model_path = str(model_list[int(input("Enter number: "))])
+else:
+    model_path = run_folder + C.model_name
+config_output_filename = run_folder + "config.pickle"
+print("Specified Model for Testing:", model_path)
+
+
 
 # turn off any data augmentation at test time
 C.use_horizontal_flips = False
@@ -136,8 +149,8 @@ model_classifier_only = Model([feature_map_input, roi_input], classifier)
 
 model_classifier = Model([feature_map_input, roi_input], classifier)
 
-model_rpn.load_weights(run_folder + C.model_name, by_name=True)
-model_classifier.load_weights(run_folder + C.model_name, by_name=True)
+model_rpn.load_weights(model_path, by_name=True)
+model_classifier.load_weights(model_path, by_name=True)
 
 model_rpn.compile(optimizer='sgd', loss='mse')
 model_classifier.compile(optimizer='sgd', loss='mse')
