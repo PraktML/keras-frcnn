@@ -64,6 +64,10 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     continue
                 if frame > shot['to']:
                     break
+
+                if frame + shot['offset'] == 2818 and shot['name'] == "2B":
+                    print("manually skipped this pictures 2B_2818!!!!") #TODO: fix this, either get the frame or find a nicer way
+                    continue
                 frame_path = TARGET_PATH_VRI + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
 
                 # outer boundingbox: top left and bottom right corner
