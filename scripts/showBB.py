@@ -19,7 +19,7 @@ if os.path.exists(OUT_FOLDER):
     shutil.rmtree(OUT_FOLDER)
     os.makedirs(OUT_FOLDER)
 
-RANDOM_SAMPLES = 2
+RANDOM_SAMPLES = 20
 
 
 NUMBER_FORMAT = "%06d"
@@ -119,7 +119,7 @@ def read_vehReID_random():
 
 
 def read_vehicleReId():
-    for shot in CHECKED_FRAMES:
+    for shot in scripts.settings.FRAMES_VRI:
         name = shot['name']
         with open(scripts.settings.SHOTS_FOLDER + name+"_annotations.txt") as file:
             for frame_no in shot['frames']:

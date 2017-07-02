@@ -19,7 +19,8 @@ from keras_frcnn import losses as losses
 from keras_frcnn import resnet as nn
 import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
-from keras.callbacks import TensorBoard
+#from keras.callbacks import TensorBoard
+
 
 IMAGE_FOLDER = scripts.settings.PLATTE_BASEPATH
 # IMAGE_FOLDER = "images/"
@@ -102,8 +103,8 @@ model_classifier = Model([img_input, roi_input], classifier)
 log_path = C.output_folder + "logs/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
-TC = TensorBoard(log_dir=log_path)
-TC.set_model(model_classifier)
+#TC = TensorBoard(log_dir=log_path)
+#TC.set_model(model_classifier)
 
 # this is a model that holds both the RPN and the classifier, used to load/save weights for the models
 # is not trained itself!
@@ -269,7 +270,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 #     break
 
 
-
+                elapsed_time = time.time() - start_time
                 if C.verbose:
                     print('Mean number of bounding boxes from RPN overlapping ground truth boxes: {}'.format(
                         mean_overlapping_bboxes))
@@ -278,7 +279,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     print('Loss RPN regression: {}'.format(loss_rpn_regr))
                     print('Loss Detector classifier: {}'.format(loss_class_cls))
                     print('Loss Detector regression: {}'.format(loss_class_regr))
-                    print('Elapsed time: {}'.format(time.time() - start_time))
+                    print('Elapsed time: {}'.format(elapsed_time))
 
                 curr_loss = loss_rpn_cls + loss_rpn_regr + loss_class_cls + loss_class_regr
                 iter_num = 0
@@ -306,11 +307,13 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     'Loss RPN Classifier': loss_rpn_cls,
                     "Loss RPN Regression": loss_rpn_regr,
                     "Loss Classifier-Net Classification": loss_class_cls,
-                    "Loss Classifier-Net Regression": loss_class_regr
+                    "Loss Classifier-Net Regression": loss_class_regr,
+                    "Epoch #": epoch_num,
+                    "Epoch Time": elapsed_time,
                 }
                 print(log)
                 C.stats.append((epoch_num,log))
-                TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
+                #TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
 #                TC.on_epoch_end(epoch_num, log)
                 break
 
@@ -331,5 +334,5 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
     with open(C.output_folder + "config.json", 'w') as configjson:
         json.dump(vars(C), configjson)
 
-TC.on_train_end()
+#TC.on_train_end()
 print('Training complete, exiting.')
