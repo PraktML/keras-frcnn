@@ -12,13 +12,14 @@ LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
 
 OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
-OUTPUT_FILE += "bb_boxcar.txt"
+OUTPUT_FILE += "bb_1A-3Bbox.txt"
 
-TARGET_PATH_VRI = "VehicleReId/video_shots/"  # no spaces possible here!
+TARGET_PATH_VRI = "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
 TARGET_NUMBER_FORMAT_VRI = '%06d'
 TARGET_SUFFIX_VRI = '.bmp'
+ANNOTATION_FOLDER = "/media/mlprak1/PLATTE/programmieren/VehicleReId/video_shots/"
 
-TARGET_PATH_BOX = "BoxCars116k/images/"
+TARGET_PATH_BOX = "/disk/no_backup/mlprak1/BoxCars116k/images/" #"BoxCars116k/images/"
 
 
 counter = 0
@@ -30,7 +31,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
     for shot in settings.FRAMES_VRI:
         if counter == 'break': break
         print("processing shot", shot['name'])
-        anno_file = settings.SHOTS_FOLDER + shot['name'] + "_annotations.txt"
+        anno_file = ANNOTATION_FOLDER + shot['name'] + "_annotations.txt"
         if not os.path.isfile(anno_file):
             print("Annotation File:", anno_file, "doesn't exist, skip")
             continue

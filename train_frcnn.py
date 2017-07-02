@@ -22,7 +22,7 @@ from keras.utils import generic_utils
 #from keras.callbacks import TensorBoard
 
 
-IMAGE_FOLDER = scripts.settings.PLATTE_BASEPATH
+IMAGE_FOLDER = "" # scripts.settings.PLATTE_BASEPATH
 # IMAGE_FOLDER = "images/"
 
 
@@ -111,7 +111,7 @@ if not os.path.exists(log_path):
 model_all = Model([img_input, roi_input], rpn[:2] + classifier)
 if C.load_model is not None:
 
-    print("Reload already trained model", C.load_model)  # already includes run path
+    print("Reload already trained model", C.load_model)  # C.load_model already includes run path
     model_rpn.load_weights(C.load_model, by_name=True)
     model_classifier.load_weights(C.load_model, by_name=True)
 else:

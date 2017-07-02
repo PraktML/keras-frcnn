@@ -94,7 +94,7 @@ def create_config_read_parser(parser):
     parser.add_option("--input_weight_path", dest="input_weight_path",
                       help="Input path for weights. If not specified, will try to load default weights provided by keras.")
     parser.add_option("--save_every", dest="save_every",
-                      help="will save n epochs", default=1000)
+                      help="will save n epochs", default=100)
 
     parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
                       default='simple')  # '#default="pascal_voc"),
@@ -118,16 +118,17 @@ def create_config_read_parser(parser):
                       default='0')
     parser.add_option("--store", dest="store",
                       help="how is the output stored 'tensorboard', 'txt'")
-
+    parser.add_option("--frcnn_weights", dest="frcnn_weights",
+                      help="starts a new training/config file but will load in the weights from an older training")
 
     (options, args) = parser.parse_args()
 
     # resume training with old configuration
     run_path = options.resume_run if options.resume_run != '.last' else "runs/"+sorted(os.listdir("runs/"))[-1] +"/"
-    print("Resuming from", run_path)
     if run_path:
         if run_path[-1] != '/':
             run_path += '/'
+        print("Resuming from", run_path)
         with open(run_path + "config.pickle", 'rb') as config_f:
             C = pickle.load(config_f)
         C.output_folder = run_path
@@ -179,7 +180,10 @@ def create_config_read_parser(parser):
     # specify input and output of weights
     if options.input_weight_path:
         C.base_net_weights = options.input_weight_path  # the original ResNet model
-    C.load_model = None  # this will actually be loaded, might change when training is resumed
+    if options.frcnn_weights:
+        C.load_model = options.frcnn_weights
+    else:
+        C.load_model = None  # this will actually be loaded, might change when training is resumed
     C.model_name = options.output_weight_path  # within run folder
 
 
