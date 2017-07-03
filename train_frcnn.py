@@ -216,7 +216,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                         selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                             replace=True).tolist()
                     except:
-                        selected_neg_samples = 0
+                        selected_neg_samples = []
                 sel_samples = selected_pos_samples + selected_neg_samples
             else:
                 # in the extreme case where num_rois = 1, we pick a random pos or neg sample
@@ -321,9 +321,10 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 break
 
         except Exception as e:
-            with open("error_log.txt", "w") as log:
-                log.write()
-                print('Exception:: {}'.format(e))
+            with open("error_log.txt", "a") as log:
+                log.write(str(e))
+                log.write("---")
+            print('Exception:: {}'.format(e))
 
 
             #raise
