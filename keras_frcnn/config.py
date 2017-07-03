@@ -112,7 +112,7 @@ def create_config_read_parser(parser):
     parser.add_option("--num_epochs", dest="num_epochs", help="Number of epochs.",
                       default=1000)  # 2000
     parser.add_option("--epoch_length", dest="epoch_length", help="Number of batches in an epoch",
-                      default=100)  # 2000
+                      default=1000)  # 2000
     parser.add_option("--verbose", dest="verbose",
                       help="Additional Output is shown, possible values 0 or 1.",
                       default='0')

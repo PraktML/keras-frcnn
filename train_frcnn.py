@@ -206,14 +206,17 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 if len(pos_samples) < C.num_rois // 2: # usually half are positive and half are negative examples
                     selected_pos_samples = pos_samples.tolist()
                 else:
+
                     selected_pos_samples = np.random.choice(pos_samples, C.num_rois // 2, replace=False).tolist()
                 try: # TODO: `neg_samples` was empty   File "mtrand.pyx", line 1121, in mtrand.RandomState.choice (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
                     selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                             replace=False).tolist()
                 except:
-                    selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
+                    try:
+                        selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                             replace=True).tolist()
-
+                    except:
+                        selected_neg_samples = 0
                 sel_samples = selected_pos_samples + selected_neg_samples
             else:
                 # in the extreme case where num_rois = 1, we pick a random pos or neg sample
@@ -293,7 +296,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     best_loss = curr_loss
                     model_all.save_weights(model_path)
                 try:
-                    if epoch_num % C.save_every:
+                    if epoch_num % C.save_every == 0:
                         checkpoint_path = C.output_folder + "model_frcnn"+str(epoch_num)+".hdf5"
                         print("saving weights of epoch:", epoch_num, "to", checkpoint_path)
                         model_all.save_weights(checkpoint_path)
@@ -318,9 +321,12 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 break
 
         except Exception as e:
-            print('Exception:: {}'.format(e))
+            with open("error_log.txt", "w") as log:
+                log.write()
+                print('Exception:: {}'.format(e))
 
-            raise
+
+            #raise
             continue
 
     #with open(C.output_folder+"epoch.txt", 'w') as epoch_f:

@@ -14,7 +14,7 @@ OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
 OUTPUT_FILE += "bb_1A-3Bbox.txt"
 
-TARGET_PATH_VRI = "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
+TARGET_PATH_VRI = "/media/mlprak1/Seagate Backup Plus Drive/VehicleReId/video_shots/" #  "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
 TARGET_NUMBER_FORMAT_VRI = '%06d'
 TARGET_SUFFIX_VRI = '.bmp'
 ANNOTATION_FOLDER = "/media/mlprak1/PLATTE/programmieren/VehicleReId/video_shots/"
@@ -38,6 +38,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
         with open(anno_file, 'r') as file:
             csvreader = csv.reader(file, delimiter=',')
             for line in csvreader:
+
                 if LIMIT_OUTPUT != "":
                     counter += 1
                     if counter >= LIMIT_OUTPUT:
@@ -65,8 +66,8 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 if frame > shot['to']:
                     break
 
-                if frame + shot['offset'] == 2818 and shot['name'] == "2B":
-                    print("manually skipped this pictures 2B_2818!!!!") #TODO: fix this, either get the frame or find a nicer way
+                if frame + shot['offset'] == 2818 and shot['name'] == "2B" or frame + shot['offset'] == 9262 and shot['name'] == "3A":
+                    print("manually skipped this pictures!!!!") #TODO: fix this, either get the frame or find a nicer way
                     continue
                 frame_path = TARGET_PATH_VRI + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
 
