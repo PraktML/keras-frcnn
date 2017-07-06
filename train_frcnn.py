@@ -93,6 +93,7 @@ num_anchors = len(C.anchor_box_scales) * len(C.anchor_box_ratios)
 rpn = nn.rpn(shared_layers, num_anchors)
 # returns: rpn <- [x_class, x_regr, base_layers], base_layers is not used below
 
+                                         #will be filled
 classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(classes_count), trainable=True)
 # returns: classifier <- [out_class, out_regr]
 

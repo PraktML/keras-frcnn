@@ -62,7 +62,7 @@ def read_anno_file():
                 color = (255, 0,225)
                 c = 'm'
 
-            img = cv2.rectangle(img, (int(x1),int(y1)), (int(x2),int(y2)), color=color, thickness=3)
+            img = cv2.rectangle(img, (int(x1),int(y1)), (int(x2),int(y2)), color=color, thickness=5)
 
 
             #################### MEANING OF THE COLORS/ANNOTATIONS ##########################

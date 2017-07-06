@@ -30,4 +30,3 @@ FRAMES_VRI = [
 #    {"name": "5B", "frames": [804, 4390, 14238, 14372],         "offset": -2, "sep_y": -35, "sep_m": 0.4, "from":0, "to": 8000},
 
 ]
-FRAMES_VRI = []

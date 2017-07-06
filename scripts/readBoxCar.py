@@ -7,8 +7,9 @@ import os
 import cv2
 #SHOTS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]
 OUT_FOLDER = scripts.settings.BOXCARS_FOLDER + "visualize/"
-shutil.rmtree(OUT_FOLDER)
-os.makedirs(OUT_FOLDER)
+if os.path.exists(OUT_FOLDER):
+    shutil.rmtree(OUT_FOLDER)
+    os.makedirs(OUT_FOLDER)
 
 RANDOM_SAMPLES = 20
 

@@ -16,7 +16,7 @@ sys.setrecursionlimit(40000)
 
 parser = OptionParser()
 
-parser.add_option("-t", "--path_testdata", dest="test_path", help="Path to test data.",
+parser.add_option("--path", "--path_testdata", dest="test_path", help="Path to test data.",
                   default='images_test/')
 parser.add_option("-n", "--num_rois", dest="num_rois",
                   help="Number of ROIs per iteration. Higher means more memory use.") #, default=32)
@@ -35,15 +35,12 @@ if not options.run_folder:  # if filename is not given
         print("[{}] {}".format(idx, run_name))
     run_folder = "runs/"+str(run_list[int(input("Enter number: "))] + "/")
 else:
-    run_folder = options.run_folder + "" if options.run_folder[-1] == '/' else '/'
+    run_folder = options.run_folder + ""  if options.run_folder[-1] == '/' else '/'
 config_output_filename = run_folder + "config.pickle"
 
 with open(config_output_filename, 'rb') as f_in:
     C = pickle.load(f_in)
 
-results_folder = run_folder + "results_imgs/"
-if not os.path.exists(results_folder):
-    os.makedirs(results_folder)
 
 model_list = glob.glob(run_folder+"*.hdf5")
 if not options.model and len(model_list)>1:
@@ -52,12 +49,18 @@ if not options.model and len(model_list)>1:
     for idx, model_name in enumerate(model_list):
         print("[{}] {}".format(idx, model_name))
     model_path = str(model_list[int(input("Enter number: "))])
+elif options.model:
+    model_path = options.model
 else:
-    model_path = run_folder + C.model_name
+    model_path = run_folder + C. model_name
 config_output_filename = run_folder + "config.pickle"
 print("Specified Model for Testing:", model_path)
 
-
+model_name =model_path[model_path.rfind("/")+1:]
+results_folder = run_folder + "results_"+model_name[:model_name.rfind(".")]+"/"
+if not os.path.exists(results_folder):
+    os.makedirs(results_folder)
+print("write to", results_folder)
 
 # turn off any data augmentation at test time
 C.use_horizontal_flips = False
@@ -123,7 +126,12 @@ if 'bg' not in class_mapping:
 class_mapping = {v: k for k, v in class_mapping.items()}
 print(class_mapping)
 class_to_color = {class_mapping[v]: np.random.randint(0, 255, 3) for v in class_mapping}
-
+colors = {"front": (255, 255, 0),
+          "back": (0, 255, 255),
+          "side": (0, 255, 0),
+          "outer": (255, 0, 0),
+          "top": (255, 0, 225)
+          }
 if options.num_rois:
     C.num_rois = int(options.num_rois)
 
@@ -250,7 +258,9 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
             (real_x1, real_y1, real_x2, real_y2) = get_real_coordinates(ratio, x1, y1, x2, y2)
 
             cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2),
-                          (int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])), 1)
+                          #(int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),
+                          (0,0,0) if not key in colors else colors[key],
+                            6)
 
             bbs_real.append({"class": key, "prob": new_probs[jk],
                             "x1": real_x1, "y1": real_y1, "x2": real_x2, "y2": real_y2})
@@ -301,7 +311,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
     y_med = []
     y_low = []
     for bb in bbs_real:
-        print("bb:", bb)
+        #print("bb:", bb)
         if bb["class"] == "outer":
             x_away.append((bb["x1"], bb["prob"], True))
             y_high.append((bb["y1"], bb["prob"], True))
@@ -345,13 +355,22 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
     cv2.rectangle(img,
                   (min(x_in_mean, x_out_mean), min(y_low_mean, y_med_mean)),
                   (max(x_in_mean, x_out_mean), max(y_low_mean, y_med_mean)),
-                  bb_color, 5)
-    cv2.line(img, (x_out_mean, y_med_mean), (x_out_mean + x_back_dist, y_med_mean + y_back_dist), bb_color, 4)
-    cv2.line(img, (x_in_mean,  y_med_mean), (x_in_mean + x_back_dist,  y_med_mean + y_back_dist), bb_color, 4)
-    cv2.line(img, (x_in_mean,  y_low_mean), (x_in_mean + x_back_dist,  y_low_mean + y_back_dist), bb_color, 4)
+                  bb_color, 8)
+    cv2.line(img, (x_out_mean, y_med_mean), (x_out_mean + x_back_dist, y_med_mean + y_back_dist), bb_color, 8)
+    cv2.line(img, (x_in_mean,  y_med_mean), (x_in_mean + x_back_dist,  y_med_mean + y_back_dist), bb_color, 8)
+    cv2.line(img, (x_in_mean,  y_low_mean), (x_in_mean + x_back_dist,  y_low_mean + y_back_dist), bb_color, 8)
 
-    print('Elapsed time = {}'.format(time.time() - st))
+    # show legend in upper left corner
+    if img.shape[0] > 500:
+
+        cv2.rectangle(img, (0,0), (100, len(colors)*30+5), (255,255,255), -1)
+        i = 0
+        for key, color in colors.items():
+            cv2.putText(img, str(key), (3,int(i*30+20)), cv2.FONT_HERSHEY_DUPLEX, 0.7, color, 0)
+            i += 1
+        print('Elapsed time = {}'.format(time.time() - st))
     print(all_dets)
     #cv2.imshow('img', img)
     #cv2.waitKey(0)
-    cv2.imwrite(run_folder + 'results_imgs/{}.png'.format(img_name),img)
+
+    cv2.imwrite(results_folder+'{}.png'.format(img_name),img)

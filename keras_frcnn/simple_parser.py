@@ -31,8 +31,15 @@ def get_data(input_path, image_folder='', train_test_split=None):
         idx = 0
         for line in f:
             line_split = line.strip().split(',')
-            (filename, x1, y1, x2, y2, class_name) = line_split
 
+            try:
+                (filename, x1, y1, x2, y2, class_name) = line_split
+            except:
+                (filename, x1, y1, x2, y2,
+                 bb_x1, bb_y1, bb_x2, bb_y2, bb_x3, bb_y3, bb_x4, bb_y4,
+                 bb_x5, bb_y5, bb_x6, bb_y6, bb_x7, bb_y7, bb_x8, bb_y8,
+                 class_name
+                 ) = line_split
             # add prefix to filename
             filename = image_folder + filename
 
@@ -73,8 +80,19 @@ def get_data(input_path, image_folder='', train_test_split=None):
 
             print(idx, "append to", filename, ".")
             idx+=1
-            all_imgs[filename]['bboxes'].append(
-                {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
+            try:
+                all_imgs[filename]['bboxes'].append(
+                    {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2),
+                     'bb_x1': bb_x1, 'bb_y1': bb_y1, 'bb_x2': bb_x2, 'bb_y2': bb_y2,
+                     'bb_x3': bb_x3, 'bb_y3': bb_y3, 'bb_x4': bb_x4, 'bb_y4': bb_y4,
+                     'bb_x5': bb_x5, 'bb_y5': bb_y5, 'bb_x6': bb_x6, 'bb_y6': bb_y6,
+                     'bb_x7': bb_x7, 'bb_y7': bb_y7, 'bb_x8': bb_x8, 'bb_y8': bb_y8,
+                     },
+                    )
+            except:
+                all_imgs[filename]['bboxes'].append(
+                    {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
+
 
     # make sure the bg class is last in the list
     if found_bg:
