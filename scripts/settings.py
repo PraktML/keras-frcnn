@@ -6,7 +6,7 @@ if os.name == 'nt': # on windows
     FZI_DATASETS = ""
 
 else: # on linux
-    PLATTE_BASEPATH = "/media/florian/PLATTE/programmieren/"
+    PLATTE_BASEPATH = "/disk/no_backup/mlprak1/"#"/disk/ml/datasets/"#""/media/florian/PLATTE/programmieren/"
     PROJECTS_BASEPATH = "/media/florian/Windows8_OS/Users/Florian/PycharmProjects/"
     FZI_DATASETS = "/disk/ml/datasets/"
 
@@ -24,9 +24,10 @@ FRAMES_VRI = [
     {"name": "3A", "frames": [1862, 922, 4896, 9388],           "offset": 0, "sep_y": -65, "sep_m": 0.67, "from":0, "to": 20000},
                                                                 ### dieser offset stimmt ned
     {"name": "3B", "frames": [1862, 922, 4896],                 "offset": -2, "sep_y": -10, "sep_m": 0.4, "from":0, "to": 8000},
-    {"name": "4A", "frames": [806, 4390,8410, 8800,],           "offset": +1, "sep_y": -100, "sep_m": 0.65 , "from":0, "to": 8000},
+#    {"name": "4A", "frames": [806, 4390,8410, 8800,],           "offset": +1, "sep_y": -100, "sep_m": 0.65 , "from":0, "to": 8000},
 #    {"name": "4B", "frames": [806, 4390, 7934, 8166],           "offset": -4, "sep_y": 6, "sep_m": 0.35, "from":0, "to": 8000},
 #    {"name": "5A", "frames": [804, 4390,17902, 18014],          "offset": -3, "sep_y": -250, "sep_m": 0.60, "from":0, "to": 8000},
 #    {"name": "5B", "frames": [804, 4390, 14238, 14372],         "offset": -2, "sep_y": -35, "sep_m": 0.4, "from":0, "to": 8000},
 
 ]
+#FRAMES_VRI = []
