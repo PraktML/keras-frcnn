@@ -83,10 +83,10 @@ def get_data(input_path, image_folder='', train_test_split=None):
             try:
                 all_imgs[filename]['bboxes'].append(
                     {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2),
-                     'bb_x1': bb_x1, 'bb_y1': bb_y1, 'bb_x2': bb_x2, 'bb_y2': bb_y2,
-                     'bb_x3': bb_x3, 'bb_y3': bb_y3, 'bb_x4': bb_x4, 'bb_y4': bb_y4,
-                     'bb_x5': bb_x5, 'bb_y5': bb_y5, 'bb_x6': bb_x6, 'bb_y6': bb_y6,
-                     'bb_x7': bb_x7, 'bb_y7': bb_y7, 'bb_x8': bb_x8, 'bb_y8': bb_y8,
+                     'bb_x1': int(bb_x1), 'bb_y1': int(bb_y1), 'bb_x2': int(bb_x2), 'bb_y2': int(bb_y2),
+                     'bb_x3': int(bb_x3), 'bb_y3': int(bb_y3), 'bb_x4': int(bb_x4), 'bb_y4': int(bb_y4),
+                     'bb_x5': int(bb_x5), 'bb_y5': int(bb_y5), 'bb_x6': int(bb_x6), 'bb_y6': int(bb_y6),
+                     'bb_x7': int(bb_x7), 'bb_y7': int(bb_y7), 'bb_x8': int(bb_x8), 'bb_y8': int(bb_y8),
                      },
                     )
             except:
