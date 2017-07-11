@@ -1,6 +1,6 @@
 import os
 import csv
-import scripts.settings as settings
+import settings
 import json
 import numpy as np
 
