@@ -20,7 +20,7 @@ def calc_iou(R, img_data, C, class_mapping):
 		gta[bbox_num, 1] = int(round(bbox['x2'] * (resized_width / float(width))/C.rpn_stride))
 		gta[bbox_num, 2] = int(round(bbox['y1'] * (resized_height / float(height))/C.rpn_stride))
 		gta[bbox_num, 3] = int(round(bbox['y2'] * (resized_height / float(height))/C.rpn_stride))
-                gta[bbox_num, 4] = int(round(bbox['bb_x2'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 4] = int(round(bbox['bb_x2'] * (resized_width / float(width))/C.rpn_stride))
 		gta[bbox_num, 5] = int(round(bbox['bb_y2'] * (resized_height / float(height))/C.rpn_stride))
 
 	x_roi = []
