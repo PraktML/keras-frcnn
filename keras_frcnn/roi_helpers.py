@@ -12,7 +12,7 @@ def calc_iou(R, img_data, C, class_mapping):
 	# get image dimensions for resizing
 	(resized_width, resized_height) = data_generators.get_new_img_size(width, height, C.im_size)
 
-	gta = np.zeros((len(bboxes), 4))
+	gta = np.zeros((len(bboxes), 6))
 
 	for bbox_num, bbox in enumerate(bboxes):
 		# get the GT box coordinates, and resize to account for image resizing
@@ -20,6 +20,8 @@ def calc_iou(R, img_data, C, class_mapping):
 		gta[bbox_num, 1] = int(round(bbox['x2'] * (resized_width / float(width))/C.rpn_stride))
 		gta[bbox_num, 2] = int(round(bbox['y1'] * (resized_height / float(height))/C.rpn_stride))
 		gta[bbox_num, 3] = int(round(bbox['y2'] * (resized_height / float(height))/C.rpn_stride))
+                gta[bbox_num, 4] = int(round(bbox['bb_x2'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 5] = int(round(bbox['bb_y2'] * (resized_height / float(height))/C.rpn_stride))
 
 	x_roi = []
 	y_class_num = []
@@ -63,6 +65,10 @@ def calc_iou(R, img_data, C, class_mapping):
 				ty = (cyg - cy) / float(h)
 				tw = np.log((gta[best_bbox, 1] - gta[best_bbox, 0]) / float(w))
 				th = np.log((gta[best_bbox, 3] - gta[best_bbox, 2]) / float(h))
+
+				# Calculating ground truth for regression parameters of front bounding box
+				twf = np.log((gta[best_bbox, 1] - gta[best_bbox, 4]) / float(w))
+				thf = np.log((gta[best_bbox, 3] - gta[best_bbox, 5]) / float(h))
 			else:
 				print('roi = {}'.format(best_iou))
 				raise RuntimeError
@@ -71,13 +77,13 @@ def calc_iou(R, img_data, C, class_mapping):
 		class_label = len(class_mapping) * [0]
 		class_label[class_num] = 1
 		y_class_num.append(copy.deepcopy(class_label))
-		coords = [0] * 4 * (len(class_mapping) - 1)
-		labels = [0] * 4 * (len(class_mapping) - 1)
+		coords = [0] * 6 * (len(class_mapping) - 1)
+		labels = [0] * 6 * (len(class_mapping) - 1)
 		if cls_name != 'bg':
-			label_pos = 4 * class_num
+			label_pos = 6 * class_num
 			sx, sy, sw, sh = C.classifier_regr_std
-			coords[label_pos:4+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th]
-			labels[label_pos:4+label_pos] = [1, 1, 1, 1]
+			coords[label_pos:6+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th, sw*twf, sh*thf]
+			labels[label_pos:6+label_pos] = [1, 1, 1, 1, 1, 1]
 			y_class_regr_coords.append(copy.deepcopy(coords))
 			y_class_regr_label.append(copy.deepcopy(labels))
 		else:
