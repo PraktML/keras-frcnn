@@ -180,20 +180,21 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                                for xy in instance["3DBB"]])
 
             # Make sure we switch front and back in case the car is driving away from the camera
-            offset = 0 if instance['to_camera'] else 4
+            to_cam= instance['to_camera']
+            offset = lambda v, towards_camera: (((v + 2) % 4) + ((v // 4) * 4)) if not towards_camera else v
 
             if DATA_FORMAT == "3d_reg":
                 csvwriter.writerow({"filepath": frame_path,
                                     "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
                                     "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
-                                    "top_front_right_x": points[0 + offset][0], "top_front_right_y": points[0][1],
-                                    "top_front_left_x": points[1 + offset][0], "top_front_left_y": points[1][1],
-                                    "top_back_left_x": points[2 + offset][0], "top_back_left_y": points[2][1],
-                                    "top_back_right_x": points[3 + offset][0], "top_back_right_y": points[3][1],
-                                    "bot_front_right_x": points[(4 + offset) % 8][0], "bot_front_right_y": points[(4 + offset) % 8][1],
-                                    "bot_front_left_x": points[(5 + offset) % 8][0], "bot_front_left_y": points[(5 + offset) % 8][1],
-                                    "bot_back_left_x": points[(6 + offset) % 8][0], "bot_back_left_y": points[(6 + offset) % 8][1],
-                                    "bot_back_right_x": points[(7 + offset) % 8][0], "bot_back_right_y": points[(7 + offset) % 8][1],
+                                    "top_front_right_x": points[offset(0, to_cam)][0], "top_front_right_y": points[offset(0, to_cam)][1],
+                                    "top_front_left_x": points[offset(1, to_cam)][0], "top_front_left_y": points[offset(1, to_cam)][1],
+                                    "top_back_left_x": points[offset(2, to_cam)][0], "top_back_left_y": points[offset(2, to_cam)][1],
+                                    "top_back_right_x": points[offset(3, to_cam)][0], "top_back_right_y": points[offset(3, to_cam)][1],
+                                    "bot_front_right_x": points[offset(4, to_cam)][0], "bot_front_right_y": points[offset(4, to_cam)][1],
+                                    "bot_front_left_x": points[offset(5, to_cam)][0], "bot_front_left_y": points[offset(5, to_cam)][1],
+                                    "bot_back_left_x": points[offset(6, to_cam)][0], "bot_back_left_y": points[offset(6, to_cam)][1],
+                                    "bot_back_right_x": points[offset(7, to_cam)][0], "bot_back_right_y": points[offset(7, to_cam)][1],
                                     "class_name": "3DBB"
                                     })
             else:
