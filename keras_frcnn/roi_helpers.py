@@ -12,7 +12,7 @@ def calc_iou(R, img_data, C, class_mapping):
 	# get image dimensions for resizing
 	(resized_width, resized_height) = data_generators.get_new_img_size(width, height, C.im_size)
 
-	gta = np.zeros((len(bboxes), 6))
+	gta = np.zeros((len(bboxes), 16))
 
 	for bbox_num, bbox in enumerate(bboxes):
 		# get the GT box coordinates, and resize to account for image resizing
@@ -20,8 +20,21 @@ def calc_iou(R, img_data, C, class_mapping):
 		gta[bbox_num, 1] = int(round(bbox['x2'] * (resized_width / float(width))/C.rpn_stride))
 		gta[bbox_num, 2] = int(round(bbox['y1'] * (resized_height / float(height))/C.rpn_stride))
 		gta[bbox_num, 3] = int(round(bbox['y2'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 4] = int(round(bbox['bb_x2'] * (resized_width / float(width))/C.rpn_stride))
-		gta[bbox_num, 5] = int(round(bbox['bb_y2'] * (resized_height / float(height))/C.rpn_stride))
+
+		# Select 6 out of 8 points from 3D bb, enough to reconstruct full 3d bb later
+		gta[bbox_num, 4] = int(round(bbox['bb_x1'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 5] = int(round(bbox['bb_x2'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 6] = int(round(bbox['bb_x3'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 7] = int(round(bbox['bb_x5'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 8] = int(round(bbox['bb_y7'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 9] = int(round(bbox['bb_y8'] * (resized_height / float(height))/C.rpn_stride))
+
+		gta[bbox_num, 10] = int(round(bbox['bb_y1'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 11] = int(round(bbox['bb_y2'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 12] = int(round(bbox['bb_y3'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 13] = int(round(bbox['bb_y5'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 14] = int(round(bbox['bb_y7'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 15] = int(round(bbox['bb_y8'] * (resized_height / float(height))/C.rpn_stride))
 
 	x_roi = []
 	y_class_num = []
@@ -66,9 +79,9 @@ def calc_iou(R, img_data, C, class_mapping):
 				tw = np.log((gta[best_bbox, 1] - gta[best_bbox, 0]) / float(w))
 				th = np.log((gta[best_bbox, 3] - gta[best_bbox, 2]) / float(h))
 
-				# Calculating ground truth for regression parameters of front bounding box
-				twf = np.log((gta[best_bbox, 1] - gta[best_bbox, 4]) / float(w))
-				thf = np.log((gta[best_bbox, 3] - gta[best_bbox, 5]) / float(h))
+				# Calculating ground truth for regression parameters of 3d bounding box
+				acc_3d = ([np.log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w)) for i in range(6)] +
+					[np.log((gta[best_bbox, 3] - gta[best_bbox, i + 10]) / float(h)) for i in range(6)])
 			else:
 				print('roi = {}'.format(best_iou))
 				raise RuntimeError
@@ -77,13 +90,14 @@ def calc_iou(R, img_data, C, class_mapping):
 		class_label = len(class_mapping) * [0]
 		class_label[class_num] = 1
 		y_class_num.append(copy.deepcopy(class_label))
-		coords = [0] * 6 * (len(class_mapping) - 1)
-		labels = [0] * 6 * (len(class_mapping) - 1)
+		coords = [0] * 16 * (len(class_mapping) - 1)
+		labels = [0] * 16 * (len(class_mapping) - 1)
 		if cls_name != 'bg':
 			label_pos = 6 * class_num
 			sx, sy, sw, sh = C.classifier_regr_std
-			coords[label_pos:6+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th, sw*twf, sh*thf]
-			labels[label_pos:6+label_pos] = [1, 1, 1, 1, 1, 1]
+			pdb.set_trace()
+			coords[label_pos:16+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th] + [sw * v for v in acc_3d[:6]] + [sh * v for v in acc_3d[6:]]
+			labels[label_pos:16+label_pos] = [1] * 16
 			y_class_regr_coords.append(copy.deepcopy(coords))
 			y_class_regr_label.append(copy.deepcopy(labels))
 		else:
