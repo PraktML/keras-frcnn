@@ -109,15 +109,15 @@ def format_img(img, C):
 
 
 # Method to transform the coordinates of the bounding box to its original size
-def get_real_coordinates(ratio, x1, y1, x2, y2, xf, yf):
+def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
     real_x1 = int(round(x1 // ratio))
     real_y1 = int(round(y1 // ratio))
     real_x2 = int(round(x2 // ratio))
     real_y2 = int(round(y2 // ratio))
-    real_xf = int(round(xf // ratio))
-    real_yf = int(round(yf // ratio))
 
-    return (real_x1, real_y1, real_x2, real_y2, real_xf, real_yf)
+    real_bb3d = [int(round(v // ratio)) for v in bb3d]
+
+    return (real_x1, real_y1, real_x2, real_y2, real_bb3d)
 
 
 class_mapping = C.class_mapping
@@ -235,14 +235,23 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 
             cls_num = np.argmax(P_cls[0, ii, :])
             try:
-                (tx, ty, tw, th, twf, thf) = P_regr[0, ii, 6 * cls_num:6 * (cls_num + 1)]
+                regr_result = P_regr[0, ii, 16 * cls_num:16 * (cls_num + 1)]
+
+                tx = regr_result[0]
+                ty = regr_result[1]
+                tw = regr_result[2]
+                th = regr_result[3]
+                bb3d = regr_result[4:]
+
                 tx /= C.classifier_regr_std[0]
                 ty /= C.classifier_regr_std[1]
                 tw /= C.classifier_regr_std[2]
                 th /= C.classifier_regr_std[3]
-                twf /= C.classifier_regr_std[2]
-                thf /= C.classifier_regr_std[3]
-                x, y, w, h, wf, hf = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th, twf, thf)
+                
+                bb3d_x = [v / C.classifier_regr_std[2] for v in bb3d[:6]]
+                bb3d_y = [v / C.classifier_regr_std[3] for v in bb3d[6:]]
+
+                x, y, w, h, bb3d_regressed = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th, bb3d_x + bb3d_y)
             except:
                 pass
             bboxes[cls_name].append(
@@ -253,19 +262,31 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
     bbs_real = []
     for key in bboxes:
         bbox = np.array(bboxes[key])
+        print('Found {} BBs before NMS'.format(len(bbox)))
 
         new_boxes, new_probs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[key]),
                                                                     overlap_thresh=rpn_overlap_trashhold)
+        print('Found {} BBs after NMS'.format(len(new_boxes)))
+
         for jk in range(new_boxes.shape[0]):
-            (x1, y1, x2, y2, xf, yf) = new_boxes[jk, :]
+            (x1, y1, x2, y2, bb3d) = new_boxes[jk, :]
 
-            (real_x1, real_y1, real_x2, real_y2, real_xf, real_yf) = get_real_coordinates(ratio, x1, y1, x2, y2, xf, yf)
+            (real_x1, real_y1, real_x2, real_y2, real_bb3d) = get_real_coordinates(ratio, x1, y1, x2, y2, bb3d)
 
-            cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2),
-                          #(int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),
-                          (0,0,0) if not key in colors else colors[key],
-                            6)
-            cv2.rectangle(img, (real_xf, real_yf), (real_x2, real_y2), (255,0,0) , 6)
+            # Draw points belonging to front in red, draw points belonging to back in blue
+            front = [0, 1, 4]
+            back = [2, 3, 5]
+            for p in front:
+                cv2.circle(img, (real_bb3d[p], real_bb3d[p + 6]), 3, (0, 0, 255), 3)
+                 
+            for p in back:
+                cv2.circle(img, (real_bb3d[p], real_bb3d[p + 6]), 3, (255, 0, 0), 3)
+
+            # cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2),
+                          # #(int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),
+                          # (0,0,0) if not key in colors else colors[key],
+                            # 6)
+            # cv2.rectangle(img, (real_xf, real_yf), (real_x2, real_y2), (255,0,0) , 6)
 
             bbs_real.append({"class": key, "prob": new_probs[jk],
                             "x1": real_x1, "y1": real_y1, "x2": real_x2, "y2": real_y2})
