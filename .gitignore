@@ -91,3 +91,9 @@ ENV/
 #model weights
 *.h5
 *.h5py
+
+# Error log
+error_log.txt
+
+# RUns
+runs/*
