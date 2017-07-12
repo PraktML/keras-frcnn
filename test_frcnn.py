@@ -242,7 +242,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                 th /= C.classifier_regr_std[3]
                 twf /= C.classifier_regr_std[2]
                 thf /= C.classifier_regr_std[3]
-                x, y, w, h, wf, hf = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, thT, twf, thf)
+                x, y, w, h, wf, hf = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th, twf, thf)
             except:
                 pass
             bboxes[cls_name].append(
