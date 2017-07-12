@@ -224,6 +224,6 @@ def classifier(base_layers, input_rois, num_rois, nb_classes = 21, trainable=Fal
 
     out_class = TimeDistributed(Dense(nb_classes, activation='softmax', kernel_initializer='zero'), name='dense_class_{}'.format(nb_classes))(out)
     # note: no regression target for bg class
-    out_regr = TimeDistributed(Dense(6 * (nb_classes-1), activation='linear', kernel_initializer='zero'), name='dense_regress_{}'.format(nb_classes))(out)
+    out_regr = TimeDistributed(Dense(16 * (nb_classes-1), activation='linear', kernel_initializer='zero'), name='dense_regress_{}'.format(nb_classes))(out)
     return [out_class, out_regr]
 
