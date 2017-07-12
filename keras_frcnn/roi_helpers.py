@@ -97,7 +97,7 @@ def calc_iou(R, img_data, C, class_mapping):
 		coords = [0] * 16 * (len(class_mapping) - 1)
 		labels = [0] * 16 * (len(class_mapping) - 1)
 		if cls_name != 'bg':
-			label_pos = 6 * class_num
+			label_pos = 16 * class_num
 			sx, sy, sw, sh = C.classifier_regr_std
 			coords[label_pos:16+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th] + [sw * v for v in acc_3d[:6]] + [sh * v for v in acc_3d[6:]]
 			labels[label_pos:16+label_pos] = [1] * 16
