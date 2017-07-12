@@ -19,7 +19,7 @@ TARGET_NUMBER_FORMAT_VRI = '%06d'
 TARGET_SUFFIX_VRI = '.bmp'
 ANNOTATION_FOLDER = settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
 
-TARGET_PATH_BOX = "/disk/no_backup/mlprak1/BoxCars116k/images/" #"BoxCars116k/images/"
+TARGET_PATH_BOX = "/Users/kolja/Downloads/BoxCars116k/images/" #"BoxCars116k/images/"
 
 DATA_FORMAT = "3d_reg" # in ["3d_reg", "merge_areas"]
 
@@ -179,18 +179,21 @@ with open(OUTPUT_FILE, 'w+') as outfile:
             points = np.array([(int(xy[0]-instance["3DBB_offset"][0]), int(xy[1]-instance["3DBB_offset"][1]))
                                for xy in instance["3DBB"]])
 
+            # Make sure we switch front and back in case the car is driving away from the camera
+            offset = 0 if instance['to_camera'] else 4
+
             if DATA_FORMAT == "3d_reg":
                 csvwriter.writerow({"filepath": frame_path,
                                     "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
                                     "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
-                                    "top_front_right_x": points[0][0], "top_front_right_y": points[0][1],
-                                    "top_front_left_x": points[1][0], "top_front_left_y": points[1][1],
-                                    "top_back_left_x": points[2][0], "top_back_left_y": points[2][1],
-                                    "top_back_right_x": points[3][0], "top_back_right_y": points[3][1],
-                                    "bot_front_right_x": points[4][0], "bot_front_right_y": points[4][1],
-                                    "bot_front_left_x": points[5][0], "bot_front_left_y": points[5][1],
-                                    "bot_back_left_x": points[6][0], "bot_back_left_y": points[6][1],
-                                    "bot_back_right_x": points[7][0], "bot_back_right_y": points[7][1],
+                                    "top_front_right_x": points[0 + offset][0], "top_front_right_y": points[0][1],
+                                    "top_front_left_x": points[1 + offset][0], "top_front_left_y": points[1][1],
+                                    "top_back_left_x": points[2 + offset][0], "top_back_left_y": points[2][1],
+                                    "top_back_right_x": points[3 + offset][0], "top_back_right_y": points[3][1],
+                                    "bot_front_right_x": points[(4 + offset) % 8][0], "bot_front_right_y": points[(4 + offset) % 8][1],
+                                    "bot_front_left_x": points[(5 + offset) % 8][0], "bot_front_left_y": points[(5 + offset) % 8][1],
+                                    "bot_back_left_x": points[(6 + offset) % 8][0], "bot_back_left_y": points[(6 + offset) % 8][1],
+                                    "bot_back_right_x": points[(7 + offset) % 8][0], "bot_back_right_y": points[(7 + offset) % 8][1],
                                     "class_name": "3DBB"
                                     })
             else:
