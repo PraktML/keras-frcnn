@@ -79,9 +79,12 @@ def calc_iou(R, img_data, C, class_mapping):
 				tw = np.log((gta[best_bbox, 1] - gta[best_bbox, 0]) / float(w))
 				th = np.log((gta[best_bbox, 3] - gta[best_bbox, 2]) / float(h))
 
+				# Make sure we don't log on 0
+				eps = 10e-10
+
 				# Calculating ground truth for regression parameters of 3d bounding box
-				acc_3d = ([np.log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w)) for i in range(6)] +
-					[np.log((gta[best_bbox, 3] - gta[best_bbox, i + 10]) / float(h)) for i in range(6)])
+				acc_3d = ([np.log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w) + eps) for i in range(6)] +
+					[np.log((gta[best_bbox, 3] - gta[best_bbox, i + 10]) / float(h) + eps) for i in range(6)])
 			else:
 				print('roi = {}'.format(best_iou))
 				raise RuntimeError
@@ -112,7 +115,7 @@ def calc_iou(R, img_data, C, class_mapping):
 
 	return np.expand_dims(X, axis=0), np.expand_dims(Y1, axis=0), np.expand_dims(Y2, axis=0)
 
-def apply_regr(x, y, w, h, tx, ty, tw, th, twf, thf):
+def apply_regr(x, y, w, h, tx, ty, tw, th, bb3d):
 	try:
 		cx = x + w/2.
 		cy = y + h/2.
@@ -120,18 +123,18 @@ def apply_regr(x, y, w, h, tx, ty, tw, th, twf, thf):
 		cy1 = ty * h + cy
 		w1 = math.exp(tw) * w
 		h1 = math.exp(th) * h
-		wf = math.exp(twf) * w
-		hf = math.exp(thf) * h
+
+		bb3d_x = [int(round(math.exp(v))) * w for v in bb3d[:6]]
+		bb3d_y = [int(round(math.exp(v))) * h for v in bb3d[6:]]
+
 		x1 = cx1 - w1/2.
 		y1 = cy1 - h1/2.
 		x1 = int(round(x1))
 		y1 = int(round(y1))
 		w1 = int(round(w1))
 		h1 = int(round(h1))
-		wf = int(round(wf))
-		hf = int(round(hf))
 
-		return x1, y1, w1, h1, wf, hf
+		return x1, y1, w1, h1, bb3d_x + bb3d_y
 
 	except ValueError:
 		return x, y, w, h
