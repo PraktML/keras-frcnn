@@ -11,6 +11,7 @@ from keras import backend as K
 from keras.layers import Input
 from keras.models import Model
 from keras_frcnn import roi_helpers
+import math
 
 sys.setrecursionlimit(40000)
 
@@ -119,6 +120,26 @@ def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
 
     return (real_x1, real_y1, real_x2, real_y2, real_bb3d)
 
+
+def intersect_lines(pt1, pt2, ptA, ptB): 
+    DET_TOLERANCE = 0.00000001
+    x1, y1 = pt1
+    x2, y2 = pt2
+    dx1 = x2 - x1
+    dy1 = y2 - y1
+    x, y = ptA;   xB, yB = ptB;
+    dx = xB - x;  dy = yB - y;
+    DET = (-dx1 * dy + dy1 * dx)
+
+    if math.fabs(DET) < DET_TOLERANCE: return (0,0,0,0,0)
+    DETinv = 1.0/DET
+
+    r = DETinv * (-dy  * (x-x1) +  dx * (y-y1))
+    s = DETinv * (-dy1 * (x-x1) + dx1 * (y-y1))
+
+    xi = (x1 + r*dx1 + x + s*dx)/2.0
+    yi = (y1 + r*dy1 + y + s*dy)/2.0
+    return ( xi, yi, 1, r, s )
 
 class_mapping = C.class_mapping
 
@@ -251,11 +272,11 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                 bb3d_x = [v / C.classifier_regr_std[2] for v in bb3d[:6]]
                 bb3d_y = [v / C.classifier_regr_std[3] for v in bb3d[6:]]
 
-                x, y, w, h, bb3d_regressed = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th, bb3d_x + bb3d_y)
+                x, y, w, h, bb3d_regr = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th, bb3d_x + bb3d_y)
             except:
                 pass
             bboxes[cls_name].append(
-                [C.rpn_stride * x, C.rpn_stride * y, C.rpn_stride * (x + w), C.rpn_stride * (y + h), C.rpn_stride * (x + w - wf), C.rpn_stride * (y + h - hf)])
+                    [C.rpn_stride * x, C.rpn_stride * y, C.rpn_stride * (x + w), C.rpn_stride * (y + h)] + [C.rpn_stride * (x + w - v) for v in bb3d_regr[:6]] + [C.rpn_stride * (y + h - v) for v in bb3d_regr[6:]])
             probs[cls_name].append(np.max(P_cls[0, ii, :]))
 
     all_dets = []
@@ -269,23 +290,66 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
         print('Found {} BBs after NMS'.format(len(new_boxes)))
 
         for jk in range(new_boxes.shape[0]):
-            (x1, y1, x2, y2, bb3d) = new_boxes[jk, :]
+            res = new_boxes[jk, :]
+            x1 = res[0]
+            y1 = res[1]
+            x2 = res[2]
+            y2 = res[3]
+            bb3d = res[4:]
 
             (real_x1, real_y1, real_x2, real_y2, real_bb3d) = get_real_coordinates(ratio, x1, y1, x2, y2, bb3d)
 
-            # Draw points belonging to front in red, draw points belonging to back in blue
-            front = [0, 1, 4]
-            back = [2, 3, 5]
-            for p in front:
-                cv2.circle(img, (real_bb3d[p], real_bb3d[p + 6]), 3, (0, 0, 255), 3)
-                 
-            for p in back:
-                cv2.circle(img, (real_bb3d[p], real_bb3d[p + 6]), 3, (255, 0, 0), 3)
+            vp1x, vp1y, val1, r1, s1 = intersect_lines((real_bb3d[0], real_bb3d[6]), (real_bb3d[1], real_bb3d[7]), (real_bb3d[5], real_bb3d[11]), (real_bb3d[4], real_bb3d[10]))
+            vp2x, vp2y, val2, r2, s2 = intersect_lines((real_bb3d[2], real_bb3d[8]), (real_bb3d[1], real_bb3d[7]), (real_bb3d[5], real_bb3d[11]), (real_bb3d[3], real_bb3d[9]))
+            vp3x, vp3y, val3, r3, s3 = intersect_lines((real_bb3d[0], real_bb3d[6]), (real_bb3d[3], real_bb3d[9]), (real_bb3d[2], real_bb3d[8]), (real_bb3d[4], real_bb3d[10]))
 
-            # cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2),
-                          # #(int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),
-                          # (0,0,0) if not key in colors else colors[key],
-                            # 6)
+            # if val1 and val2:
+                # bb3d_x4, bb3d_y4, val4, r, s = intersect_lines((real_bb3d[2], real_bb3d[8]), (vp1x, vp1y), (real_bb3d[0], real_bb3d[6]), (vp2x, vp2y))
+                # bb3d_x6, bb3d_y6, val6, r, s = intersect_lines((real_bb3d[3], real_bb3d[9]), (vp1x, vp1y), (real_bb3d[4], real_bb3d[10]), (vp2x, vp2y))
+
+            # TODO(kolja): In case lines of vp3 are parallel (-> val3 is false), we can just assume that they are vertical for now. Fix points 4 and 6,
+
+            if val1 and val3:
+                bb3d_x4, bb3d_y4, val4, r, s = intersect_lines((real_bb3d[2], real_bb3d[8]), (vp1x, vp1y), (real_bb3d[5], real_bb3d[11]), (vp3x, vp3y))
+                bb3d_x6, bb3d_y6, val6, r, s = intersect_lines((real_bb3d[3], real_bb3d[9]), (vp1x, vp1y), (real_bb3d[1], real_bb3d[7]), (vp3x, vp3y))
+
+                bb3d_x4 = int(bb3d_x4)
+                bb3d_y4 = int(bb3d_y4)
+                bb3d_x6 = int(bb3d_x6)
+                bb3d_y6 = int(bb3d_y6)
+
+                if val4:
+                    cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[0], real_bb3d[6]), (0, 0, 0), 1, cv2.LINE_AA)
+                    cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[2], real_bb3d[8]), (0, 0, 0), 1, cv2.LINE_AA)
+                    cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[5], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
+                    cv2.circle(img, (bb3d_x4, bb3d_y4), 1, (0, 255, 0), 3)
+
+                if val6:
+                    cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[1], real_bb3d[7]), (0, 0, 0), 1, cv2.LINE_AA)
+                    cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[3], real_bb3d[9]), (0, 0, 0), 1, cv2.LINE_AA)
+                    cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[4], real_bb3d[10]), (0, 0, 0), 1, cv2.LINE_AA)
+                    cv2.circle(img, (bb3d_x6, bb3d_y6), 1, (0, 255, 0), 3)
+
+
+            cv2.line(img, (real_bb3d[0], real_bb3d[6]), (real_bb3d[1], real_bb3d[7]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (real_bb3d[0], real_bb3d[6]), (real_bb3d[3], real_bb3d[9]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (real_bb3d[1], real_bb3d[7]), (real_bb3d[2], real_bb3d[8]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (real_bb3d[2], real_bb3d[8]), (real_bb3d[4], real_bb3d[10]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (real_bb3d[3], real_bb3d[9]), (real_bb3d[5], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (real_bb3d[4], real_bb3d[10]), (real_bb3d[5], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
+
+            # Draw points belonging to front in red, draw points belonging to back in blue
+            front = [0, 1, 3]
+            back = [2, 4, 5]
+            for p in front:
+                cv2.circle(img, (real_bb3d[p], real_bb3d[p + 6]), 1, (0, 0, 255), 3)
+
+            for p in back:
+                cv2.circle(img, (real_bb3d[p], real_bb3d[p + 6]), 1, (255, 0, 0), 3)
+
+
+
+            # cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2), (0,0,0), 1)
             # cv2.rectangle(img, (real_xf, real_yf), (real_x2, real_y2), (255,0,0) , 6)
 
             bbs_real.append({"class": key, "prob": new_probs[jk],
@@ -304,6 +368,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                 cv2.putText(img, textLabel, textOrg, cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), 1)
 
 
+            break
     ############## FIND these POINTS by WEIGHING the PROPOSALS ##########################
     #
     #
