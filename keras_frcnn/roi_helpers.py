@@ -95,7 +95,6 @@ def calc_iou(R, img_data, C, class_mapping):
 		if cls_name != 'bg':
 			label_pos = 6 * class_num
 			sx, sy, sw, sh = C.classifier_regr_std
-			pdb.set_trace()
 			coords[label_pos:16+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th] + [sw * v for v in acc_3d[:6]] + [sh * v for v in acc_3d[6:]]
 			labels[label_pos:16+label_pos] = [1] * 16
 			y_class_regr_coords.append(copy.deepcopy(coords))
