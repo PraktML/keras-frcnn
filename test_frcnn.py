@@ -109,13 +109,15 @@ def format_img(img, C):
 
 
 # Method to transform the coordinates of the bounding box to its original size
-def get_real_coordinates(ratio, x1, y1, x2, y2):
+def get_real_coordinates(ratio, x1, y1, x2, y2, xf, yf):
     real_x1 = int(round(x1 // ratio))
     real_y1 = int(round(y1 // ratio))
     real_x2 = int(round(x2 // ratio))
     real_y2 = int(round(y2 // ratio))
+    real_xf = int(round(xf // ratio))
+    real_yf = int(round(yf // ratio))
 
-    return (real_x1, real_y1, real_x2, real_y2)
+    return (real_x1, real_y1, real_x2, real_y2, real_xf, real_yf)
 
 
 class_mapping = C.class_mapping
@@ -233,16 +235,18 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 
             cls_num = np.argmax(P_cls[0, ii, :])
             try:
-                (tx, ty, tw, th) = P_regr[0, ii, 4 * cls_num:4 * (cls_num + 1)]
+                (tx, ty, tw, th, twf, thf) = P_regr[0, ii, 6 * cls_num:6 * (cls_num + 1)]
                 tx /= C.classifier_regr_std[0]
                 ty /= C.classifier_regr_std[1]
                 tw /= C.classifier_regr_std[2]
                 th /= C.classifier_regr_std[3]
-                x, y, w, h = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th)
+                twf /= C.classifier_regr_std[2]
+                thf /= C.classifier_regr_std[3]
+                x, y, w, h, wf, hf = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, thT, twf, thf)
             except:
                 pass
             bboxes[cls_name].append(
-                [C.rpn_stride * x, C.rpn_stride * y, C.rpn_stride * (x + w), C.rpn_stride * (y + h)])
+                [C.rpn_stride * x, C.rpn_stride * y, C.rpn_stride * (x + w), C.rpn_stride * (y + h), C.rpn_stride * (x + w - wf), C.rpn_stride * (y + h - hf)])
             probs[cls_name].append(np.max(P_cls[0, ii, :]))
 
     all_dets = []
@@ -253,14 +257,15 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
         new_boxes, new_probs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[key]),
                                                                     overlap_thresh=rpn_overlap_trashhold)
         for jk in range(new_boxes.shape[0]):
-            (x1, y1, x2, y2) = new_boxes[jk, :]
+            (x1, y1, x2, y2, xf, yf) = new_boxes[jk, :]
 
-            (real_x1, real_y1, real_x2, real_y2) = get_real_coordinates(ratio, x1, y1, x2, y2)
+            (real_x1, real_y1, real_x2, real_y2, real_xf, real_yf) = get_real_coordinates(ratio, x1, y1, x2, y2, xf, yf)
 
             cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2),
                           #(int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),
                           (0,0,0) if not key in colors else colors[key],
                             6)
+            cv2.rectangle(img, (real_xf, real_yf), (real_x2, real_y2), (255,0,0) , 6)
 
             bbs_real.append({"class": key, "prob": new_probs[jk],
                             "x1": real_x1, "y1": real_y1, "x2": real_x2, "y2": real_y2})
@@ -304,71 +309,71 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
     #     * only holds true, if car bounding points are vertical
     #     # only holds true, if car bounding points are horizontal
     #
-    x_away = []
-    x_in = []
-    x_out = []
-    y_high = []
-    y_med = []
-    y_low = []
-    for bb in bbs_real:
-        #print("bb:", bb)
-        if bb["class"] == "outer":
-            x_away.append((bb["x1"], bb["prob"], True))
-            y_high.append((bb["y1"], bb["prob"], True))
-            x_out.append( (bb["x2"], bb["prob"], True))
-            y_low.append( (bb["y2"], bb["prob"], True))
+    # x_away = []
+    # x_in = []
+    # x_out = []
+    # y_high = []
+    # y_med = []
+    # y_low = []
+    # for bb in bbs_real:
+        # #print("bb:", bb)
+        # if bb["class"] == "outer":
+            # x_away.append((bb["x1"], bb["prob"], True))
+            # y_high.append((bb["y1"], bb["prob"], True))
+            # x_out.append( (bb["x2"], bb["prob"], True))
+            # y_low.append( (bb["y2"], bb["prob"], True))
 
-        elif bb["class"] == "top":
-            x_away.append((bb["x1"], bb["prob"], True))
-            y_high.append((bb["y1"], bb["prob"], True))
-            x_out.append( (bb["x2"], bb["prob"], False))
-            y_med.append( (bb["y2"], bb["prob"], False))
+        # elif bb["class"] == "top":
+            # x_away.append((bb["x1"], bb["prob"], True))
+            # y_high.append((bb["y1"], bb["prob"], True))
+            # x_out.append( (bb["x2"], bb["prob"], False))
+            # y_med.append( (bb["y2"], bb["prob"], False))
 
-        elif bb["class"] == "side":
-            x_away.append((bb["x1"], bb["prob"], True))
-            y_high.append((bb["y1"], bb["prob"], True))
-            x_in.append(  (bb["x2"], bb["prob"], False))
-            y_low.append( (bb["y2"], bb["prob"], False))
+        # elif bb["class"] == "side":
+            # x_away.append((bb["x1"], bb["prob"], True))
+            # y_high.append((bb["y1"], bb["prob"], True))
+            # x_in.append(  (bb["x2"], bb["prob"], False))
+            # y_low.append( (bb["y2"], bb["prob"], False))
 
-        elif bb["class"] == "front" or bb["class"] == "back":
-            x_in.append(  (bb["x1"], bb["prob"], True))
-            y_med.append( (bb["y1"], bb["prob"], True))
-            x_out.append( (bb["x2"], bb["prob"], True))
-            y_low.append( (bb["y2"], bb["prob"], True))
-        else:
-            exit("unknown class")
-    try:
-        x_away_mean = int(np.average([x[0] for x in x_away], weights=[x[1] for x in x_away]))
-        x_in_mean   = int(np.average([x[0] for x in x_in], weights=[x[1] for x in x_in]))
-        x_out_mean  = int(np.average([x[0] for x in x_out], weights=[x[1] for x in x_out]))
+        # elif bb["class"] == "front" or bb["class"] == "back":
+            # x_in.append(  (bb["x1"], bb["prob"], True))
+            # y_med.append( (bb["y1"], bb["prob"], True))
+            # x_out.append( (bb["x2"], bb["prob"], True))
+            # y_low.append( (bb["y2"], bb["prob"], True))
+        # else:
+            # exit("unknown class")
+    # try:
+        # x_away_mean = int(np.average([x[0] for x in x_away], weights=[x[1] for x in x_away]))
+        # x_in_mean   = int(np.average([x[0] for x in x_in], weights=[x[1] for x in x_in]))
+        # x_out_mean  = int(np.average([x[0] for x in x_out], weights=[x[1] for x in x_out]))
 
-        y_high_mean = int(np.average([y[0] for y in y_high], weights=[y[1] for y in y_high]))
-        y_med_mean  = int(np.average([y[0] for y in y_med], weights=[y[1] for y in y_med]))
-        y_low_mean  = int(np.average([y[0] for y in y_low], weights=[y[1] for y in y_low]))
-    except ZeroDivisionError:
-        print("not enough data to create a 3D bounding box, either train the model better or set the threshold=",bbox_threshold, "lower.")
-        continue
-    x_back_dist = x_away_mean - x_in_mean
-    y_back_dist = y_high_mean - y_med_mean
+        # y_high_mean = int(np.average([y[0] for y in y_high], weights=[y[1] for y in y_high]))
+        # y_med_mean  = int(np.average([y[0] for y in y_med], weights=[y[1] for y in y_med]))
+        # y_low_mean  = int(np.average([y[0] for y in y_low], weights=[y[1] for y in y_low]))
+    # except ZeroDivisionError:
+        # print("not enough data to create a 3D bounding box, either train the model better or set the threshold=",bbox_threshold, "lower.")
+        # continue
+    # x_back_dist = x_away_mean - x_in_mean
+    # y_back_dist = y_high_mean - y_med_mean
 
-    bb_color = (255,255,255)
-    cv2.rectangle(img,
-                  (min(x_in_mean, x_out_mean), min(y_low_mean, y_med_mean)),
-                  (max(x_in_mean, x_out_mean), max(y_low_mean, y_med_mean)),
-                  bb_color, 8)
-    cv2.line(img, (x_out_mean, y_med_mean), (x_out_mean + x_back_dist, y_med_mean + y_back_dist), bb_color, 8)
-    cv2.line(img, (x_in_mean,  y_med_mean), (x_in_mean + x_back_dist,  y_med_mean + y_back_dist), bb_color, 8)
-    cv2.line(img, (x_in_mean,  y_low_mean), (x_in_mean + x_back_dist,  y_low_mean + y_back_dist), bb_color, 8)
+    # bb_color = (255,255,255)
+    # cv2.rectangle(img,
+                  # (min(x_in_mean, x_out_mean), min(y_low_mean, y_med_mean)),
+                  # (max(x_in_mean, x_out_mean), max(y_low_mean, y_med_mean)),
+                  # bb_color, 8)
+    # cv2.line(img, (x_out_mean, y_med_mean), (x_out_mean + x_back_dist, y_med_mean + y_back_dist), bb_color, 8)
+    # cv2.line(img, (x_in_mean,  y_med_mean), (x_in_mean + x_back_dist,  y_med_mean + y_back_dist), bb_color, 8)
+    # cv2.line(img, (x_in_mean,  y_low_mean), (x_in_mean + x_back_dist,  y_low_mean + y_back_dist), bb_color, 8)
 
     # show legend in upper left corner
-    if img.shape[0] > 500:
+    # if img.shape[0] > 500:
 
-        cv2.rectangle(img, (0,0), (100, len(colors)*30+5), (255,255,255), -1)
-        i = 0
-        for key, color in colors.items():
-            cv2.putText(img, str(key), (3,int(i*30+20)), cv2.FONT_HERSHEY_DUPLEX, 0.7, color, 0)
-            i += 1
-        print('Elapsed time = {}'.format(time.time() - st))
+        # cv2.rectangle(img, (0,0), (100, len(colors)*30+5), (255,255,255), -1)
+        # i = 0
+        # for key, color in colors.items():
+            # cv2.putText(img, str(key), (3,int(i*30+20)), cv2.FONT_HERSHEY_DUPLEX, 0.7, color, 0)
+            # i += 1
+        # print('Elapsed time = {}'.format(time.time() - st))
     print(all_dets)
     #cv2.imshow('img', img)
     #cv2.waitKey(0)
