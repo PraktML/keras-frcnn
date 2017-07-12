@@ -134,8 +134,8 @@ def apply_regr(x, y, w, h, tx, ty, tw, th, bb3d):
 		w1 = math.exp(tw) * w
 		h1 = math.exp(th) * h
 
-		bb3d_x = [int(round(math.exp(v))) * w for v in bb3d[:6]]
-		bb3d_y = [int(round(math.exp(v))) * h for v in bb3d[6:]]
+		bb3d_x = [int(round(math.exp(v) * w)) for v in bb3d[:6]]
+		bb3d_y = [int(round(math.exp(v) * h)) for v in bb3d[6:]]
 
 		x1 = cx1 - w1/2.
 		y1 = cy1 - h1/2.
