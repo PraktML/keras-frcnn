@@ -23,11 +23,11 @@ def calc_iou(R, img_data, C, class_mapping):
 
 		# Select 6 out of 8 points from 3D bb, enough to reconstruct full 3d bb later
 		gta[bbox_num, 4] = int(round(bbox['bb_x1'] * (resized_width / float(width))/C.rpn_stride))
-		gta[bbox_num, 5] = int(round(bbox['bb_x2'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 6] = int(round(bbox['bb_x3'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 7] = int(round(bbox['bb_x5'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 8] = int(round(bbox['bb_y7'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 9] = int(round(bbox['bb_y8'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 5] = int(round(bbox['bb_x2'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 6] = int(round(bbox['bb_x3'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 7] = int(round(bbox['bb_x5'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 8] = int(round(bbox['bb_x7'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 9] = int(round(bbox['bb_x8'] * (resized_width / float(width))/C.rpn_stride))
 
 		gta[bbox_num, 10] = int(round(bbox['bb_y1'] * (resized_height / float(height))/C.rpn_stride))
 		gta[bbox_num, 11] = int(round(bbox['bb_y2'] * (resized_height / float(height))/C.rpn_stride))
@@ -83,8 +83,9 @@ def calc_iou(R, img_data, C, class_mapping):
 				eps = 10e-10
 
 				# Calculating ground truth for regression parameters of 3d bounding box
-				acc_3d = ([np.log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w) + eps) for i in range(6)] +
-					[np.log((gta[best_bbox, 3] - gta[best_bbox, i + 10]) / float(h) + eps) for i in range(6)])
+				acc_3d = ([safe_log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w)) for i in range(6)] +
+					[safe_log((gta[best_bbox, 3] - gta[best_bbox, i + 10]) / float(h)) for i in range(6)])
+
 			else:
 				print('roi = {}'.format(best_iou))
 				raise RuntimeError
@@ -114,6 +115,15 @@ def calc_iou(R, img_data, C, class_mapping):
 	Y2 = np.concatenate([np.array(y_class_regr_label),np.array(y_class_regr_coords)],axis=1)
 
 	return np.expand_dims(X, axis=0), np.expand_dims(Y1, axis=0), np.expand_dims(Y2, axis=0)
+
+def safe_log(val):
+	eps = 10e-6
+
+	if val <= 0:
+		val = eps
+
+	return np.log(val)
+
 
 def apply_regr(x, y, w, h, tx, ty, tw, th, bb3d):
 	try:
