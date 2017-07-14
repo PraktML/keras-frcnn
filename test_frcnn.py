@@ -383,8 +383,8 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 
 
             # Draw points belonging to front in red, draw points belonging to back in blue
-            front = [0, 1, 3, 4]
-            back = [2, 4, 5, 6]
+            front = [0, 1, 4, 5]
+            back = [2, 3, 6, 7]
             for p in front:
                 cv2.circle(img, (real_bb3d[p], real_bb3d[p + 8]), 1, (0, 0, 255), 3)
 
