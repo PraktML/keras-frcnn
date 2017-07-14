@@ -309,27 +309,62 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 
             # TODO(kolja): In case lines of vp3 are parallel (-> val3 is false), we can just assume that they are vertical for now. Fix points 4 and 6,
 
+            # Generate all candidates for the missing points
+            nb_candidates = 0
+
+            avg4 = [0] * 2
+            avg6 = [0] * 2
+
+            if val1 and val2:
+                bb3d_x4, bb3d_y4, val4, r, s = intersect_lines((real_bb3d[2], real_bb3d[8]), (vp1x, vp1y), (real_bb3d[0], real_bb3d[6]), (vp2x, vp2y))
+                bb3d_x6, bb3d_y6, val6, r, s = intersect_lines((real_bb3d[3], real_bb3d[9]), (vp1x, vp1y), (real_bb3d[4], real_bb3d[10]), (vp2x, vp2y))
+                cv2.circle(img, (int(bb3d_x4), int(bb3d_y4)), 1, (255, 255, 0), 3)
+                cv2.circle(img, (int(bb3d_x6), int(bb3d_y6)), 1, (255, 255, 0), 3)
+                avg4[0] += bb3d_x4
+                avg4[1] += bb3d_y4
+                avg6[0] += bb3d_x6
+                avg6[1] += bb3d_y6
+                nb_candidates += 1
+
+            if val2 and val3:
+                bb3d_x4, bb3d_y4, val4, r, s = intersect_lines((real_bb3d[2], real_bb3d[8]), (vp2x, vp2y), (real_bb3d[5], real_bb3d[11]), (vp3x, vp3y))
+                bb3d_x6, bb3d_y6, val6, r, s = intersect_lines((real_bb3d[3], real_bb3d[9]), (vp2x, vp2y), (real_bb3d[1], real_bb3d[7]), (vp3x, vp3y))
+                cv2.circle(img, (int(bb3d_x4), int(bb3d_y4)), 1, (255, 255, 0), 3)
+                cv2.circle(img, (int(bb3d_x6), int(bb3d_y6)), 1, (255, 255, 0), 3)
+                avg4[0] += bb3d_x4
+                avg4[1] += bb3d_y4
+                avg6[0] += bb3d_x6
+                avg6[1] += bb3d_y6
+                nb_candidates += 1
+
             if val1 and val3:
                 bb3d_x4, bb3d_y4, val4, r, s = intersect_lines((real_bb3d[2], real_bb3d[8]), (vp1x, vp1y), (real_bb3d[5], real_bb3d[11]), (vp3x, vp3y))
                 bb3d_x6, bb3d_y6, val6, r, s = intersect_lines((real_bb3d[3], real_bb3d[9]), (vp1x, vp1y), (real_bb3d[1], real_bb3d[7]), (vp3x, vp3y))
+                cv2.circle(img, (int(bb3d_x4), int(bb3d_y4)), 1, (255, 255, 0), 3)
+                cv2.circle(img, (int(bb3d_x6), int(bb3d_y6)), 1, (255, 255, 0), 3)
+                avg4[0] += bb3d_x4
+                avg4[1] += bb3d_y4
+                avg6[0] += bb3d_x6
+                avg6[1] += bb3d_y6
+                nb_candidates += 1
 
-                bb3d_x4 = int(bb3d_x4)
-                bb3d_y4 = int(bb3d_y4)
-                bb3d_x6 = int(bb3d_x6)
-                bb3d_y6 = int(bb3d_y6)
+            avg4 = [int(x / nb_candidates) for x in avg4]
+            avg6 = [int(x / nb_candidates) for x in avg6]
 
-                if val4:
-                    cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[0], real_bb3d[6]), (0, 0, 0), 1, cv2.LINE_AA)
-                    cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[2], real_bb3d[8]), (0, 0, 0), 1, cv2.LINE_AA)
-                    cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[5], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
-                    cv2.circle(img, (bb3d_x4, bb3d_y4), 1, (0, 255, 0), 3)
+            bb3d_x4 = avg4[0]
+            bb3d_y4 = avg4[1]
+            bb3d_x6 = avg6[0]
+            bb3d_y6 = avg6[1]
 
-                if val6:
-                    cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[1], real_bb3d[7]), (0, 0, 0), 1, cv2.LINE_AA)
-                    cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[3], real_bb3d[9]), (0, 0, 0), 1, cv2.LINE_AA)
-                    cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[4], real_bb3d[10]), (0, 0, 0), 1, cv2.LINE_AA)
-                    cv2.circle(img, (bb3d_x6, bb3d_y6), 1, (0, 255, 0), 3)
+            cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[0], real_bb3d[6]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[2], real_bb3d[8]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (bb3d_x4, bb3d_y4), (real_bb3d[5], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.circle(img, (bb3d_x4, bb3d_y4), 1, (0, 255, 0), 3)
 
+            cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[1], real_bb3d[7]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[3], real_bb3d[9]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.line(img, (bb3d_x6, bb3d_y6), (real_bb3d[4], real_bb3d[10]), (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.circle(img, (bb3d_x6, bb3d_y6), 1, (0, 255, 0), 3)
 
             cv2.line(img, (real_bb3d[0], real_bb3d[6]), (real_bb3d[1], real_bb3d[7]), (0, 0, 0), 1, cv2.LINE_AA)
             cv2.line(img, (real_bb3d[0], real_bb3d[6]), (real_bb3d[3], real_bb3d[9]), (0, 0, 0), 1, cv2.LINE_AA)
@@ -368,7 +403,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                 cv2.putText(img, textLabel, textOrg, cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), 1)
 
 
-            break
+            # break
     ############## FIND these POINTS by WEIGHING the PROPOSALS ##########################
     #
     #
