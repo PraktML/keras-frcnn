@@ -21,20 +21,24 @@ def calc_iou(R, img_data, C, class_mapping):
 		gta[bbox_num, 2] = int(round(bbox['y1'] * (resized_height / float(height))/C.rpn_stride))
 		gta[bbox_num, 3] = int(round(bbox['y2'] * (resized_height / float(height))/C.rpn_stride))
 
-		# Select 6 out of 8 points from 3D bb, enough to reconstruct full 3d bb later
+		# Select all 8 points from 3DBB
 		gta[bbox_num, 4] = int(round(bbox['bb_x1'] * (resized_width / float(width))/C.rpn_stride))
 		gta[bbox_num, 5] = int(round(bbox['bb_x2'] * (resized_width / float(width))/C.rpn_stride))
 		gta[bbox_num, 6] = int(round(bbox['bb_x3'] * (resized_width / float(width))/C.rpn_stride))
-		gta[bbox_num, 7] = int(round(bbox['bb_x5'] * (resized_width / float(width))/C.rpn_stride))
-		gta[bbox_num, 8] = int(round(bbox['bb_x7'] * (resized_width / float(width))/C.rpn_stride))
-		gta[bbox_num, 9] = int(round(bbox['bb_x8'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 7] = int(round(bbox['bb_x4'] * (resized_width / float(width)) / C.rpn_stride))
+		gta[bbox_num, 8] = int(round(bbox['bb_x5'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 9] = int(round(bbox['bb_x6'] * (resized_width / float(width)) / C.rpn_stride))
+		gta[bbox_num, 10] = int(round(bbox['bb_x7'] * (resized_width / float(width))/C.rpn_stride))
+		gta[bbox_num, 11] = int(round(bbox['bb_x8'] * (resized_width / float(width))/C.rpn_stride))
 
-		gta[bbox_num, 10] = int(round(bbox['bb_y1'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 11] = int(round(bbox['bb_y2'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 12] = int(round(bbox['bb_y3'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 13] = int(round(bbox['bb_y5'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 14] = int(round(bbox['bb_y7'] * (resized_height / float(height))/C.rpn_stride))
-		gta[bbox_num, 15] = int(round(bbox['bb_y8'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 12] = int(round(bbox['bb_y1'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 13] = int(round(bbox['bb_y2'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 14] = int(round(bbox['bb_y3'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 15] = int(round(bbox['bb_y4'] * (resized_height / float(height)) / C.rpn_stride))
+		gta[bbox_num, 16] = int(round(bbox['bb_y5'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 17] = int(round(bbox['bb_y6'] * (resized_height / float(height)) / C.rpn_stride))
+		gta[bbox_num, 18] = int(round(bbox['bb_y7'] * (resized_height / float(height))/C.rpn_stride))
+		gta[bbox_num, 19] = int(round(bbox['bb_y8'] * (resized_height / float(height))/C.rpn_stride))
 
 	x_roi = []
 	y_class_num = []
@@ -83,8 +87,8 @@ def calc_iou(R, img_data, C, class_mapping):
 				eps = 10e-10
 
 				# Calculating ground truth for regression parameters of 3d bounding box
-				acc_3d = ([safe_log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w)) for i in range(6)] +
-					[safe_log((gta[best_bbox, 3] - gta[best_bbox, i + 10]) / float(h)) for i in range(6)])
+				acc_3d = ([safe_log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w)) for i in range(8)] +
+					[safe_log((gta[best_bbox, 3] - gta[best_bbox, i + 12]) / float(h)) for i in range(8)])
 
 			else:
 				print('roi = {}'.format(best_iou))
@@ -94,13 +98,13 @@ def calc_iou(R, img_data, C, class_mapping):
 		class_label = len(class_mapping) * [0]
 		class_label[class_num] = 1
 		y_class_num.append(copy.deepcopy(class_label))
-		coords = [0] * 16 * (len(class_mapping) - 1)
-		labels = [0] * 16 * (len(class_mapping) - 1)
+		coords = [0] * 20 * (len(class_mapping) - 1)
+		labels = [0] * 20 * (len(class_mapping) - 1)
 		if cls_name != 'bg':
-			label_pos = 16 * class_num
+			label_pos = 20 * class_num
 			sx, sy, sw, sh = C.classifier_regr_std
-			coords[label_pos:16+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th] + [sw * v for v in acc_3d[:6]] + [sh * v for v in acc_3d[6:]]
-			labels[label_pos:16+label_pos] = [1] * 16
+			coords[label_pos:20+label_pos] = [sx*tx, sy*ty, sw*tw, sh*th] + [sw * v for v in acc_3d[:8]] + [sh * v for v in acc_3d[8:]]
+			labels[label_pos:20+label_pos] = [1] * 20
 			y_class_regr_coords.append(copy.deepcopy(coords))
 			y_class_regr_label.append(copy.deepcopy(labels))
 		else:
@@ -134,8 +138,8 @@ def apply_regr(x, y, w, h, tx, ty, tw, th, bb3d):
 		w1 = math.exp(tw) * w
 		h1 = math.exp(th) * h
 
-		bb3d_x = [int(round(math.exp(v) * w)) for v in bb3d[:6]]
-		bb3d_y = [int(round(math.exp(v) * h)) for v in bb3d[6:]]
+		bb3d_x = [int(round(math.exp(v) * w)) for v in bb3d[:8]]
+		bb3d_y = [int(round(math.exp(v) * h)) for v in bb3d[8:]]
 
 		x1 = cx1 - w1/2.
 		y1 = cy1 - h1/2.
