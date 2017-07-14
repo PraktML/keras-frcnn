@@ -139,7 +139,6 @@ with open(C.output_folder + "splits.pickle", 'wb') as splits_f:
     splits = {filename: all_imgs_dict[filename]['imageset'] for filename in all_imgs_dict}
     if C.verbose:
         print("saving splits file with", len(splits), "entries")
-        print(splits)
     pickle.dump(splits, splits_f, protocol=2)
 del all_imgs_dict
 

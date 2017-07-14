@@ -95,5 +95,9 @@ ENV/
 # Error log
 error_log.txt
 
-# RUns
+# Runs
 runs/*
+
+# Annotations
+annotations/*
+!annotations/.gitkeep 
