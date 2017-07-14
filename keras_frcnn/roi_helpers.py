@@ -12,7 +12,7 @@ def calc_iou(R, img_data, C, class_mapping):
 	# get image dimensions for resizing
 	(resized_width, resized_height) = data_generators.get_new_img_size(width, height, C.im_size)
 
-	gta = np.zeros((len(bboxes), 16))
+	gta = np.zeros((len(bboxes), 20))
 
 	for bbox_num, bbox in enumerate(bboxes):
 		# get the GT box coordinates, and resize to account for image resizing
