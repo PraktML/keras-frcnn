@@ -1,11 +1,12 @@
 import os
 import csv
 import settings
+import cv2
 import json
 import numpy as np
 
 """ Convert the notations form the following datasets to be used with Keras-frcnn in the simple data reader mode
-the 3D bounding boxes form VehicleReI dinto a front and a back bounding box. """
+the 3D bounding boxes form VehicleReI into a front and a back bounding box. """
 
 
 LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
@@ -14,9 +15,13 @@ OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
 OUTPUT_FILE += "bb_3Dreg.txt"
 
-TARGET_PATH_VRI = "/media/mlprak1/Seagate Backup Plus Drive/VehicleReId/video_shots/" #  "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
+OUTPUT_CUT_FILE = "../cutters/"
+
+OUTPUT_CUT_FILE += "VeReId_cut.txt"
+
+TARGET_PATH_VRI = "/home/patrick/MLPrakt/Data/VehicleReId/video_shots/" #"/media/mlprak1/Seagate Backup Plus Drive/VehicleReId/video_shots/" #  "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
 TARGET_NUMBER_FORMAT_VRI = '%06d'
-TARGET_SUFFIX_VRI = '.bmp'
+TARGET_SUFFIX_VRI = '.png'
 ANNOTATION_FOLDER = settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
 
 TARGET_PATH_BOX = "/Users/kolja/Downloads/BoxCars116k/images/" #"BoxCars116k/images/"
@@ -25,6 +30,11 @@ DATA_FORMAT = "3d_reg" # in ["3d_reg", "merge_areas"]
 
 
 counter = 0
+min_y = 10000000
+max_y = 0
+cut = 300 # maximum pixels to be cut
+puffer = 20 # puffer between highest y-coordinate in the picture and the cut
+
 with open(OUTPUT_FILE, 'w+') as outfile:
     fieldnames_area_merging = ["filepath", "x1", "y1", "x2", "y2", "class_name"]
     fieldnames_3d_reg = ["filepath", "x1", "y1", "x2", "y2",
@@ -36,7 +46,10 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                          ]
     csvwriter = csv.DictWriter(outfile, delimiter=',', lineterminator='\n',
                                fieldnames=fieldnames_area_merging if DATA_FORMAT == "merge_areas" else fieldnames_3d_reg)
+
+
     print("write to", OUTPUT_FILE)
+
 
     for shot in settings.FRAMES_VRI:
         if counter == 'break': break
@@ -71,6 +84,8 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     print("Warning: invalid line in:", line)
                     continue
 
+
+
                 if frame < shot['from']:
                     continue
                 if frame > shot['to']:
@@ -80,12 +95,38 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     print("manually skipped this pictures!!!!") #TODO: fix this, either get the frame or find a nicer way
                     continue
                 frame_path = TARGET_PATH_VRI + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
-
+                img_path = TARGET_PATH_VRI + shot['name'] + "/"
+                img_name = shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
                 if DATA_FORMAT == "3d_reg":
                     x_points = [upperPointShort_x, upperPointCorner_x, upperPointShort_x, crossCorner_x, shortSide_x, corner_x, longSide_x, lowerCrossCorner_x]
                     y_points = [upperPointShort_y, upperPointCorner_y, upperPointShort_y, crossCorner_y, shortSide_y, corner_y, longSide_y, lowerCrossCorner_y]
 
-                    facing_left = upperPointShort_x >upperPointCorner_x
+
+                    #Crop Images
+                    helpmin_y = min([y for y in y_points])
+                    helpmax_y = max([y for y in y_points])
+                    if helpmin_y < min_y:
+                        min_y = helpmin_y
+                    if helpmax_y > max_y:
+                        max_y = helpmax_y
+
+                    cutter = min(helpmin_y-puffer, cut)
+
+                    y_points = [y - cutter for y in y_points]
+
+
+                    img = cv2.imread(frame_path)
+                    height, width, channels = img.shape
+
+                    crop_img = img[cutter:height, :]  # Crop from x, y, w, h -> 100, 200, 300, 400
+                    # NOTE: its img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
+
+                    cv2.imwrite(frame_path, crop_img)
+                    print("cropped image: "+str(frame_path))
+
+
+
+                    facing_left = upperPointShort_x > upperPointCorner_x
                     csvwriter.writerow({"filepath": frame_path,
                                         "x1": min(x_points),        "y1": min(y_points),
                                         "x2": max(x_points),        "y2": max(y_points),
@@ -141,6 +182,10 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                         "x2": upperPointShort_x, "y2": upperPointCorner_y,
                         "class_name": "top"
                     })
+
+        print(shot['name'])
+        print("min: " + str(min_y))
+        print("max: " + str(max_y))
 
     with open(settings.BOXCARS_FOLDER + "json_data/dataset.json") as jsonfile:
         print("read in", settings.BOXCARS_FOLDER + "json_data/dataset.json")
@@ -230,3 +275,5 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     "x2": max([point[0] for point in points_top]),        "y2": max([point[1] for point in points_top]),
                     "class_name": "top"
                 })
+
+
