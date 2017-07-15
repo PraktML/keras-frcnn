@@ -14,14 +14,13 @@ LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
 OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
 OUTPUT_FILE += "bb_3Dreg.txt"
+OUTPUT_CUT = "cropped/"
 
-OUTPUT_CUT_FILE = "../cutters/"
-
-OUTPUT_CUT_FILE += "VeReId_cut.txt"
 
 TARGET_PATH_VRI = "/home/patrick/MLPrakt/Data/VehicleReId/video_shots/" #"/media/mlprak1/Seagate Backup Plus Drive/VehicleReId/video_shots/" #  "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
 TARGET_NUMBER_FORMAT_VRI = '%06d'
 TARGET_SUFFIX_VRI = '.png'
+TARGET_CUT = TARGET_PATH_VRI+OUTPUT_CUT
 ANNOTATION_FOLDER = settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
 
 TARGET_PATH_BOX = "/Users/kolja/Downloads/BoxCars116k/images/" #"BoxCars116k/images/"
@@ -34,6 +33,12 @@ min_y = 10000000
 max_y = 0
 cut = 300 # maximum pixels to be cut
 puffer = 20 # puffer between highest y-coordinate in the picture and the cut
+
+
+
+if not os.path.exists(TARGET_CUT):
+    os.makedirs(TARGET_CUT)
+
 
 with open(OUTPUT_FILE, 'w+') as outfile:
     fieldnames_area_merging = ["filepath", "x1", "y1", "x2", "y2", "class_name"]
@@ -94,13 +99,15 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 if frame + shot['offset'] == 2818 and shot['name'] == "2B" or frame + shot['offset'] == 9262 and shot['name'] == "3A":
                     print("manually skipped this pictures!!!!") #TODO: fix this, either get the frame or find a nicer way
                     continue
-                frame_path = TARGET_PATH_VRI + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
-                img_path = TARGET_PATH_VRI + shot['name'] + "/"
-                img_name = shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
+                raw_frame_path =  TARGET_PATH_VRI + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
+                frame_path =  TARGET_CUT + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
+                img_path = TARGET_CUT + shot['name'] + "/"
+
                 if DATA_FORMAT == "3d_reg":
                     x_points = [upperPointShort_x, upperPointCorner_x, upperPointShort_x, crossCorner_x, shortSide_x, corner_x, longSide_x, lowerCrossCorner_x]
                     y_points = [upperPointShort_y, upperPointCorner_y, upperPointShort_y, crossCorner_y, shortSide_y, corner_y, longSide_y, lowerCrossCorner_y]
 
+                    
 
                     #Crop Images
                     helpmin_y = min([y for y in y_points])
@@ -111,11 +118,10 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                         max_y = helpmax_y
 
                     cutter = min(helpmin_y-puffer, cut)
-
                     y_points = [y - cutter for y in y_points]
 
 
-                    img = cv2.imread(frame_path)
+                    img = cv2.imread(raw_frame_path)
                     height, width, channels = img.shape
 
                     crop_img = img[cutter:height, :]  # Crop from x, y, w, h -> 100, 200, 300, 400
@@ -131,22 +137,22 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                                         "x1": min(x_points),        "y1": min(y_points),
                                         "x2": max(x_points),        "y2": max(y_points),
                                         "top_front_right_x": upperPointShort_x if facing_left else upperPointCorner_x,
-                                        "top_front_right_y": upperPointShort_y if facing_left else upperPointCorner_y,
+                                        "top_front_right_y": upperPointShort_y - cutter if facing_left else upperPointCorner_y  - cutter,
                                         "top_front_left_x": upperPointCorner_x if facing_left else upperPointShort_x,
-                                        "top_front_left_y": upperPointCorner_y if facing_left else upperPointShort_y,
+                                        "top_front_left_y": upperPointCorner_y - cutter if facing_left else upperPointShort_y  - cutter,
                                         "top_back_left_x": crossCorner_x if facing_left else upperPointLong_x,
-                                        "top_back_left_y": crossCorner_y if facing_left else upperPointLong_y,
+                                        "top_back_left_y": crossCorner_y - cutter if facing_left else upperPointLong_y  - cutter,
                                         "top_back_right_x": upperPointLong_x if facing_left else crossCorner_x,
-                                        "top_back_right_y": upperPointLong_y if facing_left else crossCorner_y,
+                                        "top_back_right_y": upperPointLong_y  - cutter if facing_left else crossCorner_y  - cutter,
 
                                         "bot_front_right_x": shortSide_x if facing_left else corner_x,
-                                        "bot_front_right_y": shortSide_y if facing_left else corner_y,
+                                        "bot_front_right_y": shortSide_y - cutter if facing_left else corner_y - cutter,
                                         "bot_front_left_x": corner_x if facing_left else shortSide_x,
-                                        "bot_front_left_y": corner_y if facing_left else shortSide_y,
+                                        "bot_front_left_y": corner_y - cutter if facing_left else shortSide_y - cutter,
                                         "bot_back_left_x": lowerCrossCorner_x if facing_left else longSide_x,
-                                        "bot_back_left_y": lowerCrossCorner_y if facing_left else longSide_y,
+                                        "bot_back_left_y": lowerCrossCorner_y  - cutter if facing_left else longSide_y  - cutter,
                                         "bot_back_right_x": longSide_x if facing_left else lowerCrossCorner_x,
-                                        "bot_back_right_y": longSide_y if facing_left else lowerCrossCorner_y,
+                                        "bot_back_right_y": longSide_y  - cutter if facing_left else lowerCrossCorner_y  - cutter,
                                         "class_name": "3DBB"
                                         })
                 else:
