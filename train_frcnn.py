@@ -19,10 +19,11 @@ from keras_frcnn import losses as losses
 from keras_frcnn import resnet as nn
 import keras_frcnn.roi_helpers as roi_helpers
 from keras.utils import generic_utils
-#from keras.callbacks import TensorBoard
+
+# from keras.callbacks import TensorBoard
 
 
-IMAGE_FOLDER = "" # scripts.settings.PLATTE_BASEPATH
+IMAGE_FOLDER = ""  # scripts.settings.PLATTE_BASEPATH
 # IMAGE_FOLDER = "images/"
 
 
@@ -41,10 +42,9 @@ else:
 splits = None
 # if the splits already exist, we will load them in
 # delete this file if you are a different amount of pictures now
-if os.path.exists(C.output_folder+"splits.pickle"):
-    with open(C.output_folder+"splits.pickle", 'rb') as splits_f:
+if os.path.exists(C.output_folder + "splits.pickle"):
+    with open(C.output_folder + "splits.pickle", 'rb') as splits_f:
         splits = pickle.load(splits_f)
-
 
 all_imgs_dict, classes_count, class_mapping = get_data(
     C.train_path, image_folder=IMAGE_FOLDER, train_test_split=splits)
@@ -93,19 +93,18 @@ num_anchors = len(C.anchor_box_scales) * len(C.anchor_box_ratios)
 rpn = nn.rpn(shared_layers, num_anchors)
 # returns: rpn <- [x_class, x_regr, base_layers], base_layers is not used below
 
-                                         #will be filled
+# will be filled
 classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(classes_count), trainable=True)
 # returns: classifier <- [out_class, out_regr]
 
 model_rpn = Model(img_input, rpn[:2])
 model_classifier = Model([img_input, roi_input], classifier)
 
-
 log_path = C.output_folder + "logs/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
-#TC = TensorBoard(log_dir=log_path)
-#TC.set_model(model_classifier)
+# TC = TensorBoard(log_dir=log_path)
+# TC.set_model(model_classifier)
 
 # this is a model that holds both the RPN and the classifier, used to load/save weights for the models
 # is not trained itself!
@@ -169,8 +168,8 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     print(
                         'RPN is not producing bounding boxes that overlap the ground truth boxes. Check RPN settings or keep training.')
 
-            X, Y, img_data = next(data_gen_train) # x_img, [y_rpn_cls, y_rpn_regr], img_data_aug
-                                        # shape            (1,38,67,18)
+            X, Y, img_data = next(data_gen_train)  # x_img, [y_rpn_cls, y_rpn_regr], img_data_aug
+            # shape            (1,38,67,18)
             loss_rpn = model_rpn.train_on_batch(X, Y)
 
             P_rpn = model_rpn.predict_on_batch(X)
@@ -184,7 +183,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             if X2 is None:
                 rpn_accuracy_rpn_monitor.append(0)
                 rpn_accuracy_for_epoch.append(0)
-                continue # if no regions are found train again.
+                continue  # if no regions are found train again.
 
             neg_samples = np.where(Y1[0, :, -1] == 1)
             pos_samples = np.where(Y1[0, :, -1] == 0)
@@ -203,18 +202,18 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             rpn_accuracy_for_epoch.append((len(pos_samples)))
 
             if C.num_rois > 1:
-                if len(pos_samples) < C.num_rois // 2: # usually half are positive and half are negative examples
+                if len(pos_samples) < C.num_rois // 2:  # usually half are positive and half are negative examples
                     selected_pos_samples = pos_samples.tolist()
                 else:
 
                     selected_pos_samples = np.random.choice(pos_samples, C.num_rois // 2, replace=False).tolist()
-                try: # TODO: `neg_samples` was empty   File "mtrand.pyx", line 1121, in mtrand.RandomState.choice (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
+                try:  # TODO: `neg_samples` was empty   File "mtrand.pyx", line 1121, in mtrand.RandomState.choice (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
                     selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                             replace=False).tolist()
                 except:
                     try:
                         selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
-                                                            replace=True).tolist()
+                                                                replace=True).tolist()
                     except:
                         selected_neg_samples = []
                 sel_samples = selected_pos_samples + selected_neg_samples
@@ -263,7 +262,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 mean_overlapping_bboxes = float(sum(rpn_accuracy_for_epoch)) / len(rpn_accuracy_for_epoch)
                 rpn_accuracy_for_epoch = []
 
-
                 # for X, Y, img_data in data_gen_val:
                 #
                 #     outs = test_helper.test_picture(X, C, model_rpn=model_rpn, model_classifier_only=model_classifier,
@@ -297,13 +295,13 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     model_all.save_weights(model_path)
                 try:
                     if epoch_num % C.save_every == 0:
-                        checkpoint_path = C.output_folder + "model_frcnn"+str(epoch_num)+".hdf5"
+                        checkpoint_path = C.output_folder + "model_frcnn" + str(epoch_num) + ".hdf5"
                         print("saving weights of epoch:", epoch_num, "to", checkpoint_path)
                         model_all.save_weights(checkpoint_path)
                 except:
                     print("couldn't save checkpoint, did you specify 'save_every' in config?")
                     pass
-                log ={
+                log = {
                     "Classification Accuracy": class_acc,
                     "Mean # of BB from RPN overlapping with ground truthboxes": mean_overlapping_bboxes,
                     "Total Loss": curr_loss,
@@ -315,9 +313,9 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     "Epoch Time": elapsed_time,
                 }
                 print(log)
-                C.stats.append((epoch_num,log))
-                #TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
-#                TC.on_epoch_end(epoch_num, log)
+                C.stats.append((epoch_num, log))
+                # TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
+                #                TC.on_epoch_end(epoch_num, log)
                 break
 
         except Exception as e:
@@ -326,11 +324,10 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 log.write("---")
             print('Exception:: {}'.format(e))
 
-
-            #raise
+            # raise
             continue
 
-    #with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
+    # with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
     #    epoch_f.write(epoch_num)
     C.current_epoch = epoch_num + 1
     config_output_filename = C.output_folder + C.config_filename
@@ -341,5 +338,5 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
     with open(C.output_folder + "config.json", 'w') as configjson:
         json.dump(vars(C), configjson)
 
-#TC.on_train_end()
+# TC.on_train_end()
 print('Training complete, exiting.')

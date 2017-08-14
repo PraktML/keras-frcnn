@@ -5,7 +5,7 @@ import numpy as np
 
 
 def get_data(input_path, image_folder='', train_test_split=None):
-    assert image_folder=='' or image_folder[-1] == '/'
+    assert image_folder == '' or image_folder[-1] == '/'
     found_bg = False
     all_imgs = {}
 
@@ -14,8 +14,6 @@ def get_data(input_path, image_folder='', train_test_split=None):
     class_mapping = {}
 
     visualise = True
-
-
 
     with open(input_path, 'r') as f:
 
@@ -56,13 +54,13 @@ def get_data(input_path, image_folder='', train_test_split=None):
                 class_mapping[class_name] = len(class_mapping)
 
             if filename not in all_imgs:
-                #each image file is only read in once, but there will be several BB in it.
+                # each image file is only read in once, but there will be several BB in it.
                 all_imgs[filename] = {}
 
                 print("Simple Parser: read", filename)
                 img = cv2.imread(filename)
                 if img is None:
-                    raise(FileNotFoundError(filename))
+                    raise (FileNotFoundError(filename))
                 (rows, cols) = img.shape[:2]
                 all_imgs[filename]['filepath'] = filename
                 all_imgs[filename]['width'] = cols
@@ -79,7 +77,7 @@ def get_data(input_path, image_folder='', train_test_split=None):
                     all_imgs[filename]['imageset'] = train_test_split[filename]
 
             print(idx, "append to", filename, ".")
-            idx+=1
+            idx += 1
             try:
                 all_imgs[filename]['bboxes'].append(
                     {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2),
@@ -88,11 +86,10 @@ def get_data(input_path, image_folder='', train_test_split=None):
                      'bb_x5': int(bb_x5), 'bb_y5': int(bb_y5), 'bb_x6': int(bb_x6), 'bb_y6': int(bb_y6),
                      'bb_x7': int(bb_x7), 'bb_y7': int(bb_y7), 'bb_x8': int(bb_x8), 'bb_y8': int(bb_y8),
                      },
-                    )
+                )
             except:
                 all_imgs[filename]['bboxes'].append(
                     {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2)})
-
 
     # make sure the bg class is last in the list
     if found_bg:

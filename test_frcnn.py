@@ -20,12 +20,11 @@ parser = OptionParser()
 parser.add_option("--path", "--path_testdata", dest="test_path", help="Path to test data.",
                   default='images_test/')
 parser.add_option("-n", "--num_rois", dest="num_rois",
-                  help="Number of ROIs per iteration. Higher means more memory use.") #, default=32)
+                  help="Number of ROIs per iteration. Higher means more memory use.")  # , default=32)
 parser.add_option("--run", "--run_folder", dest="run_folder", help=
 "Location to read the metadata related to the training (generated when training).")
 parser.add_option("--model", dest="model", help="select which model to take (maybe there are ones from several epochs")
 parser.add_option("--print_classes", dest="print_classes", action="store_true", default=False)
-
 
 (options, args) = parser.parse_args()
 
@@ -34,17 +33,16 @@ if not options.run_folder:  # if filename is not given
     run_list = sorted(os.listdir("runs/"))
     for idx, run_name in enumerate(run_list):
         print("[{}] {}".format(idx, run_name))
-    run_folder = "runs/"+str(run_list[int(input("Enter number: "))] + "/")
+    run_folder = "runs/" + str(run_list[int(input("Enter number: "))] + "/")
 else:
-    run_folder = options.run_folder + ""  if options.run_folder[-1] == '/' else '/'
+    run_folder = options.run_folder + "" if options.run_folder[-1] == '/' else '/'
 config_output_filename = run_folder + "config.pickle"
 
 with open(config_output_filename, 'rb') as f_in:
     C = pickle.load(f_in)
 
-
-model_list = glob.glob(run_folder+"*.hdf5")
-if not options.model and len(model_list)>1:
+model_list = glob.glob(run_folder + "*.hdf5")
+if not options.model and len(model_list) > 1:
     print("There are several possible models to load, choose:")
     run_list = sorted(model_list)
     for idx, model_name in enumerate(model_list):
@@ -53,12 +51,12 @@ if not options.model and len(model_list)>1:
 elif options.model:
     model_path = options.model
 else:
-    model_path = run_folder + C. model_name
+    model_path = run_folder + C.model_name
 config_output_filename = run_folder + "config.pickle"
 print("Specified Model for Testing:", model_path)
 
-model_name =model_path[model_path.rfind("/")+1:]
-results_folder = run_folder + "results_"+model_name[:model_name.rfind(".")]+"/"
+model_name = model_path[model_path.rfind("/") + 1:]
+results_folder = run_folder + "results_" + model_name[:model_name.rfind(".")] + "/"
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
 print("write to", results_folder)
@@ -70,6 +68,7 @@ C.rot_90 = False
 
 img_path = options.test_path
 assert img_path[-1] == '/'
+
 
 def format_img_size(img, C):
     """ formats the image size based on config """
@@ -109,7 +108,6 @@ def format_img(img, C):
     return img, ratio
 
 
-
 # Method to transform the coordinates of the bounding box to its original size
 def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
     real_x1 = int(round(x1 // ratio))
@@ -120,6 +118,7 @@ def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
     real_bb3d = [int(round(v // ratio)) for v in bb3d]
 
     return (real_x1, real_y1, real_x2, real_y2, real_bb3d)
+
 
 """
 def intersect_lines(pt1, pt2, ptA, ptB): 
@@ -271,7 +270,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                 ty /= C.classifier_regr_std[1]
                 tw /= C.classifier_regr_std[2]
                 th /= C.classifier_regr_std[3]
-                
+
                 bb3d_x = [v / C.classifier_regr_std[2] for v in bb3d[:8]]
                 bb3d_y = [v / C.classifier_regr_std[3] for v in bb3d[8:]]
 
@@ -279,7 +278,9 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
             except:
                 pass
             bboxes[cls_name].append(
-                    [C.rpn_stride * x, C.rpn_stride * y, C.rpn_stride * (x + w), C.rpn_stride * (y + h)] + [C.rpn_stride * (x + w - v) for v in bb3d_regr[:8]] + [C.rpn_stride * (y + h - v) for v in bb3d_regr[8:]])
+                [C.rpn_stride * x, C.rpn_stride * y, C.rpn_stride * (x + w), C.rpn_stride * (y + h)] + [
+                    C.rpn_stride * (x + w - v) for v in bb3d_regr[:8]] + [C.rpn_stride * (y + h - v) for v in
+                                                                          bb3d_regr[8:]])
             probs[cls_name].append(np.max(P_cls[0, ii, :]))
 
     all_dets = []
@@ -381,7 +382,6 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
             # P7 - P8
             cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), (0, 0, 0), 1, cv2.LINE_AA)
 
-
             # Draw points belonging to front in red, draw points belonging to back in blue
             front = [0, 1, 4, 5]
             back = [2, 3, 6, 7]
@@ -391,13 +391,11 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
             for p in back:
                 cv2.circle(img, (real_bb3d[p], real_bb3d[p + 8]), 1, (255, 0, 0), 3)
 
-
-
             # cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2), (0,0,0), 1)
             # cv2.rectangle(img, (real_xf, real_yf), (real_x2, real_y2), (255,0,0) , 6)
 
             bbs_real.append({"class": key, "prob": new_probs[jk],
-                            "x1": real_x1, "y1": real_y1, "x2": real_x2, "y2": real_y2})
+                             "x1": real_x1, "y1": real_y1, "x2": real_x2, "y2": real_y2})
             textLabel = '{}: {}'.format(key, int(100 * new_probs[jk]))
             all_dets.append((key, 100 * new_probs[jk]))
 
@@ -411,101 +409,100 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                               (textOrg[0] + retval[0] + 5, textOrg[1] - retval[1] - 5), (255, 255, 255), -1)
                 cv2.putText(img, textLabel, textOrg, cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), 1)
 
-
             break
-    ############## FIND these POINTS by WEIGHING the PROPOSALS ##########################
-    #
-    #
-    #       (0,0) >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  (x,0)
-    #         v
-    #         v          O ~~~~~~~~~~~                              y_high
-    #         v        /        top    ~~~~~~~~~~~~~ O              y_med
-    #         v     O ~~~~~~~~~~~~               / f |
-    #         v     |              ~~~~~~~~~~~~ O  r |
-    #         v     |                           |  o |
-    #         v     |           side            |  n |
-    #         v     |                           |  t |
-    #         v     |                           |    O
-    #         v     o  ~~~~~~~~~~~              |   /
-    #         v                    ~~~~~~~~~~~~ O                  y_low
-    #       (0,y)   x_away                    x_in   x_out
-    #
-    #               x1       y1      x2      y2
-    #     outer: (x_away, y_high, x_out,  y_low )
-    #     top:   (x_away, y_high, x_out*, y_med^)
-    #     side:  (x_away, y_high, x_in*,  y_low^)
-    #     front: (x_in,   y_med,  x_out,  y_low )
-    #
-    #     * only holds true, if car bounding points are vertical
-    #     # only holds true, if car bounding points are horizontal
-    #
-    # x_away = []
-    # x_in = []
-    # x_out = []
-    # y_high = []
-    # y_med = []
-    # y_low = []
-    # for bb in bbs_real:
-        # #print("bb:", bb)
-        # if bb["class"] == "outer":
+            ############## FIND these POINTS by WEIGHING the PROPOSALS ##########################
+            #
+            #
+            #       (0,0) >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  (x,0)
+            #         v
+            #         v          O ~~~~~~~~~~~                              y_high
+            #         v        /        top    ~~~~~~~~~~~~~ O              y_med
+            #         v     O ~~~~~~~~~~~~               / f |
+            #         v     |              ~~~~~~~~~~~~ O  r |
+            #         v     |                           |  o |
+            #         v     |           side            |  n |
+            #         v     |                           |  t |
+            #         v     |                           |    O
+            #         v     o  ~~~~~~~~~~~              |   /
+            #         v                    ~~~~~~~~~~~~ O                  y_low
+            #       (0,y)   x_away                    x_in   x_out
+            #
+            #               x1       y1      x2      y2
+            #     outer: (x_away, y_high, x_out,  y_low )
+            #     top:   (x_away, y_high, x_out*, y_med^)
+            #     side:  (x_away, y_high, x_in*,  y_low^)
+            #     front: (x_in,   y_med,  x_out,  y_low )
+            #
+            #     * only holds true, if car bounding points are vertical
+            #     # only holds true, if car bounding points are horizontal
+            #
+            # x_away = []
+            # x_in = []
+            # x_out = []
+            # y_high = []
+            # y_med = []
+            # y_low = []
+            # for bb in bbs_real:
+            # #print("bb:", bb)
+            # if bb["class"] == "outer":
             # x_away.append((bb["x1"], bb["prob"], True))
             # y_high.append((bb["y1"], bb["prob"], True))
             # x_out.append( (bb["x2"], bb["prob"], True))
             # y_low.append( (bb["y2"], bb["prob"], True))
 
-        # elif bb["class"] == "top":
+            # elif bb["class"] == "top":
             # x_away.append((bb["x1"], bb["prob"], True))
             # y_high.append((bb["y1"], bb["prob"], True))
             # x_out.append( (bb["x2"], bb["prob"], False))
             # y_med.append( (bb["y2"], bb["prob"], False))
 
-        # elif bb["class"] == "side":
+            # elif bb["class"] == "side":
             # x_away.append((bb["x1"], bb["prob"], True))
             # y_high.append((bb["y1"], bb["prob"], True))
             # x_in.append(  (bb["x2"], bb["prob"], False))
             # y_low.append( (bb["y2"], bb["prob"], False))
 
-        # elif bb["class"] == "front" or bb["class"] == "back":
+            # elif bb["class"] == "front" or bb["class"] == "back":
             # x_in.append(  (bb["x1"], bb["prob"], True))
             # y_med.append( (bb["y1"], bb["prob"], True))
             # x_out.append( (bb["x2"], bb["prob"], True))
             # y_low.append( (bb["y2"], bb["prob"], True))
-        # else:
+            # else:
             # exit("unknown class")
-    # try:
-        # x_away_mean = int(np.average([x[0] for x in x_away], weights=[x[1] for x in x_away]))
-        # x_in_mean   = int(np.average([x[0] for x in x_in], weights=[x[1] for x in x_in]))
-        # x_out_mean  = int(np.average([x[0] for x in x_out], weights=[x[1] for x in x_out]))
+            # try:
+            # x_away_mean = int(np.average([x[0] for x in x_away], weights=[x[1] for x in x_away]))
+            # x_in_mean   = int(np.average([x[0] for x in x_in], weights=[x[1] for x in x_in]))
+            # x_out_mean  = int(np.average([x[0] for x in x_out], weights=[x[1] for x in x_out]))
 
-        # y_high_mean = int(np.average([y[0] for y in y_high], weights=[y[1] for y in y_high]))
-        # y_med_mean  = int(np.average([y[0] for y in y_med], weights=[y[1] for y in y_med]))
-        # y_low_mean  = int(np.average([y[0] for y in y_low], weights=[y[1] for y in y_low]))
-    # except ZeroDivisionError:
-        # print("not enough data to create a 3D bounding box, either train the model better or set the threshold=",bbox_threshold, "lower.")
-        # continue
-    # x_back_dist = x_away_mean - x_in_mean
-    # y_back_dist = y_high_mean - y_med_mean
+            # y_high_mean = int(np.average([y[0] for y in y_high], weights=[y[1] for y in y_high]))
+            # y_med_mean  = int(np.average([y[0] for y in y_med], weights=[y[1] for y in y_med]))
+            # y_low_mean  = int(np.average([y[0] for y in y_low], weights=[y[1] for y in y_low]))
+            # except ZeroDivisionError:
+            # print("not enough data to create a 3D bounding box, either train the model better or set the threshold=",bbox_threshold, "lower.")
+            # continue
+            # x_back_dist = x_away_mean - x_in_mean
+            # y_back_dist = y_high_mean - y_med_mean
 
-    # bb_color = (255,255,255)
-    # cv2.rectangle(img,
-                  # (min(x_in_mean, x_out_mean), min(y_low_mean, y_med_mean)),
-                  # (max(x_in_mean, x_out_mean), max(y_low_mean, y_med_mean)),
-                  # bb_color, 8)
-    # cv2.line(img, (x_out_mean, y_med_mean), (x_out_mean + x_back_dist, y_med_mean + y_back_dist), bb_color, 8)
-    # cv2.line(img, (x_in_mean,  y_med_mean), (x_in_mean + x_back_dist,  y_med_mean + y_back_dist), bb_color, 8)
-    # cv2.line(img, (x_in_mean,  y_low_mean), (x_in_mean + x_back_dist,  y_low_mean + y_back_dist), bb_color, 8)
+            # bb_color = (255,255,255)
+            # cv2.rectangle(img,
+            # (min(x_in_mean, x_out_mean), min(y_low_mean, y_med_mean)),
+            # (max(x_in_mean, x_out_mean), max(y_low_mean, y_med_mean)),
+            # bb_color, 8)
+            # cv2.line(img, (x_out_mean, y_med_mean), (x_out_mean + x_back_dist, y_med_mean + y_back_dist), bb_color, 8)
+            # cv2.line(img, (x_in_mean,  y_med_mean), (x_in_mean + x_back_dist,  y_med_mean + y_back_dist), bb_color, 8)
+            # cv2.line(img, (x_in_mean,  y_low_mean), (x_in_mean + x_back_dist,  y_low_mean + y_back_dist), bb_color, 8)
 
-    # show legend in upper left corner
-    # if img.shape[0] > 500:
+            # show legend in upper left corner
+            # if img.shape[0] > 500:
 
-        # cv2.rectangle(img, (0,0), (100, len(colors)*30+5), (255,255,255), -1)
-        # i = 0
-        # for key, color in colors.items():
+            # cv2.rectangle(img, (0,0), (100, len(colors)*30+5), (255,255,255), -1)
+            # i = 0
+            # for key, color in colors.items():
             # cv2.putText(img, str(key), (3,int(i*30+20)), cv2.FONT_HERSHEY_DUPLEX, 0.7, color, 0)
             # i += 1
-        # print('Elapsed time = {}'.format(time.time() - st))
+            # print('Elapsed time = {}'.format(time.time() - st))
     print(all_dets)
-    #cv2.imshow('img', img)
-    #cv2.waitKey(0)
+    # cv2.imshow('img', img)
+    # cv2.waitKey(0)
 
-    cv2.imwrite(results_folder+'{}.png'.format(img_name),img)
+    cv2.imwrite(results_folder + '{}.png'.format(img_name), img)
