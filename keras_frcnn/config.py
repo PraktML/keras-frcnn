@@ -78,6 +78,8 @@ class Config:
         self.output_folder = None  # has to be set to the run folder e.g. 'runs/YYYYMMDD-HHMMSS/'
         self.train_path = None     # has to be set to the txt containing the image annotations
         self.load_model = None     # from here training can be picked up
+
+
 def create_config_read_parser(parser):
     parser.add_option("-p", "--path", dest="train_path",
                       help="Path to .txt training data (in case of simple parser).")

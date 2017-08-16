@@ -122,7 +122,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     # NOTE: it's img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
 
                     cv2.imwrite(settings.variable_path_to_abs(frame_path_variable), crop_img)
-                    print("cropped image: " + str(frame_path_variable))
+                    print(counter, "cropped image: " + str(frame_path_variable))
 
                 #####################################################################
                 ################   CREATING DATA FORMAT 3D-REG   ####################
@@ -204,97 +204,104 @@ with open(OUTPUT_FILE, 'w+') as outfile:
         print("read in", settings.BOXCARS116K_JSON_FILE)
         data = json.load(jsonfile)["samples"]
 
-        instances = []
+    instances = []
 
-        for car in data:
-            for instance in car["instances"]:
-                # #############################################################
-                # and instance could look like
-                # {"2DBB": [30,30,51,36], "3DBB": [[132.771,244.777],[113.918,246.792], ... ]
-                # "3DBB_offset": [54,212],
-                # "instance_id": 0,
-                # "path": "uvoz/1/000001_000.png"
-                # },
-                # ############################################################
-                # COLORS = [(0, 0, 255),  # red           0
-                #           (0, 255, 255),  # yellow      1
-                #           (255, 255, 255),  # white     2
-                #           (255, 255, 0),  # cyan        3
-                #           (255, 0, 0),  # blue          4
-                #           (0, 0, 0),  # black           5
-                #           (0, 255, 0),  # green         6
-                #           (255, 0, 255),  # purple      7
-                #           ]
-                instance["to_camera"]  = car["to_camera"]
-                instances.append(instance)
+    for car in data:
+        for instance in car["instances"]:
+            # #############################################################
+            # and instance could look like
+            # {"2DBB": [30,30,51,36], "3DBB": [[132.771,244.777],[113.918,246.792], ... ]
+            # "3DBB_offset": [54,212],
+            # "instance_id": 0,
+            # "path": "uvoz/1/000001_000.png"
+            # },
+            # ############################################################
+            # COLORS = [(0, 0, 255),  # red           0
+            #           (0, 255, 255),  # yellow      1
+            #           (255, 255, 255),  # white     2
+            #           (255, 255, 0),  # cyan        3
+            #           (255, 0, 0),  # blue          4
+            #           (0, 0, 0),  # black           5
+            #           (0, 255, 0),  # green         6
+            #           (255, 0, 255),  # purple      7
+            #           ]
+            instance["to_camera"]  = car["to_camera"]
+            instances.append(instance)
 
+    counter = 0
+    for instance in instances:
+        if LIMIT_OUTPUT != "":
+            counter += 1
+            if counter >= LIMIT_OUTPUT:
+                print("--> Successfully finished after", counter, "entries")
+                break
 
-        print("go through instances")
-        for instance in instances:
-            frame_path_variable = "$BOXCARS116K_PATH$" + instance["path"]
-            # outer boundingbox: top left and bottom right corner
-            # (green_x, cyan_y) - (red_x, black_y)
-            points = np.array([(int(xy[0]-instance["3DBB_offset"][0]), int(xy[1]-instance["3DBB_offset"][1]))
-                               for xy in instance["3DBB"]])
+        frame_path_variable = "$BOXCARS116K_PATH$" + instance["path"]
+        # outer boundingbox: top left and bottom right corner
+        # (green_x, cyan_y) - (red_x, black_y)
+        points = np.array([(int(xy[0]-instance["3DBB_offset"][0]), int(xy[1]-instance["3DBB_offset"][1]))
+                           for xy in instance["3DBB"]])
 
-            # Make sure we switch front and back in case the car is driving away from the camera
-            to_cam= instance['to_camera']
-            offset = lambda v, towards_camera: (((v + 2) % 4) + ((v // 4) * 4)) if not towards_camera else v
+        # Make sure we switch front and back in case the car is driving away from the camera
+        to_cam= instance['to_camera']
+        offset = lambda v, towards_camera: (((v + 2) % 4) + ((v // 4) * 4)) if not towards_camera else v
+
+        #####################################################################
+        ################   CREATING DATA FORMAT 3D-REG   ####################
+        #####################################################################
+
+        if DATA_FORMAT == "3d_reg":
+            csvwriter.writerow({"filepath": frame_path_variable,
+                                "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
+                                "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
+                                "top_front_right_x": points[offset(0, to_cam)][0], "top_front_right_y": points[offset(0, to_cam)][1],
+                                "top_front_left_x": points[offset(1, to_cam)][0], "top_front_left_y": points[offset(1, to_cam)][1],
+                                "top_back_left_x": points[offset(2, to_cam)][0], "top_back_left_y": points[offset(2, to_cam)][1],
+                                "top_back_right_x": points[offset(3, to_cam)][0], "top_back_right_y": points[offset(3, to_cam)][1],
+                                "bot_front_right_x": points[offset(4, to_cam)][0], "bot_front_right_y": points[offset(4, to_cam)][1],
+                                "bot_front_left_x": points[offset(5, to_cam)][0], "bot_front_left_y": points[offset(5, to_cam)][1],
+                                "bot_back_left_x": points[offset(6, to_cam)][0], "bot_back_left_y": points[offset(6, to_cam)][1],
+                                "bot_back_right_x": points[offset(7, to_cam)][0], "bot_back_right_y": points[offset(7, to_cam)][1],
+                                "class_name": "3DBB"
+                                })
 
             #####################################################################
-            ################   CREATING DATA FORMAT 3D-REG   ####################
+            ############## CREATING DATA FORMAT MERGE AREAS  ####################
             #####################################################################
 
-            if DATA_FORMAT == "3d_reg":
-                csvwriter.writerow({"filepath": frame_path_variable,
-                                    "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
-                                    "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
-                                    "top_front_right_x": points[offset(0, to_cam)][0], "top_front_right_y": points[offset(0, to_cam)][1],
-                                    "top_front_left_x": points[offset(1, to_cam)][0], "top_front_left_y": points[offset(1, to_cam)][1],
-                                    "top_back_left_x": points[offset(2, to_cam)][0], "top_back_left_y": points[offset(2, to_cam)][1],
-                                    "top_back_right_x": points[offset(3, to_cam)][0], "top_back_right_y": points[offset(3, to_cam)][1],
-                                    "bot_front_right_x": points[offset(4, to_cam)][0], "bot_front_right_y": points[offset(4, to_cam)][1],
-                                    "bot_front_left_x": points[offset(5, to_cam)][0], "bot_front_left_y": points[offset(5, to_cam)][1],
-                                    "bot_back_left_x": points[offset(6, to_cam)][0], "bot_back_left_y": points[offset(6, to_cam)][1],
-                                    "bot_back_right_x": points[offset(7, to_cam)][0], "bot_back_right_y": points[offset(7, to_cam)][1],
-                                    "class_name": "3DBB"
-                                    })
 
-                #####################################################################
-                ################   CREATING DATA MERGE AREAS     ####################
-                #####################################################################
-
-
-            else:
-                points_facing = points[[0,1,4,5], :]
-                points_side = points[[1,2,5,6], :]
-                points_top = points[[0,1,2,3], :]
-                csvwriter.writerow({
-                    "filepath": frame_path_variable,
-                    "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
-                    "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
-                    "class_name": "outer"
-                })
-                # facing boundingbox: described by red and black, on the left side of the picture they are facing us "frontBB" on the right "backBB"
-                # (black_x, red_y) - (red_x, black_y)
-                csvwriter.writerow({
-                    "filepath": frame_path_variable,
-                    "x1": min([point[0] for point in points_facing]),        "y1": min([point[1] for point in points_facing]),
-                    "x2": max([point[0] for point in points_facing]),        "y2": max([point[1] for point in points_facing]),
-                    "class_name": "front" if instance["to_camera"] else "back"
-                })
-                # (facing) side boundingbox: described by white and black
-                # (white_x, white_y) - (black_x, black_y)
-                csvwriter.writerow({
-                    "filepath": frame_path_variable,
-                    "x1": min([point[0] for point in points_side]),        "y1": min([point[1] for point in points_side]),
-                    "x2": max([point[0] for point in points_side]),        "y2": max([point[1] for point in points_side]),
-                    "class_name": "side"
-                })
-                # (top) side boundingbox: described by
-                csvwriter.writerow({
-                    "filepath": frame_path_variable,
-                    "x1": min([point[0] for point in points_top]),        "y1": min([point[1] for point in points_top]),
-                    "x2": max([point[0] for point in points_top]),        "y2": max([point[1] for point in points_top]),
-                    "class_name": "top"
-                })
+        else:
+            points_facing = points[[0,1,4,5], :]
+            points_side = points[[1,2,5,6], :]
+            points_top = points[[0,1,2,3], :]
+            csvwriter.writerow({
+                "filepath": frame_path_variable,
+                "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
+                "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
+                "class_name": "outer"
+            })
+            # facing boundingbox: described by red and black, on the left side of the picture they are facing us "frontBB" on the right "backBB"
+            # (black_x, red_y) - (red_x, black_y)
+            csvwriter.writerow({
+                "filepath": frame_path_variable,
+                "x1": min([point[0] for point in points_facing]),        "y1": min([point[1] for point in points_facing]),
+                "x2": max([point[0] for point in points_facing]),        "y2": max([point[1] for point in points_facing]),
+                "class_name": "front" if instance["to_camera"] else "back"
+            })
+            # (facing) side boundingbox: described by white and black
+            # (white_x, white_y) - (black_x, black_y)
+            csvwriter.writerow({
+                "filepath": frame_path_variable,
+                "x1": min([point[0] for point in points_side]),        "y1": min([point[1] for point in points_side]),
+                "x2": max([point[0] for point in points_side]),        "y2": max([point[1] for point in points_side]),
+                "class_name": "side"
+            })
+            # (top) side boundingbox: described by
+            csvwriter.writerow({
+                "filepath": frame_path_variable,
+                "x1": min([point[0] for point in points_top]),        "y1": min([point[1] for point in points_top]),
+                "x2": max([point[0] for point in points_top]),        "y2": max([point[1] for point in points_top]),
+                "class_name": "top"
+            })
+        #end if
+    # end loop iterating over all instances of cars.

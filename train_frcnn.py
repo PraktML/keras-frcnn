@@ -34,7 +34,8 @@ elif C.parser == 'simple':
     from keras_frcnn.simple_parser import get_data
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
-
+print("train_frcnn.py", "--path", C.train_path, "--frcnn_weights", C.load_model,
+      "--num_epochs", C.num_epochs, "--epoch_length", C.epoch_length, "--save_every", C.save_every)
 splits = None
 # if the splits already exist, we will load them in
 # delete this file if you are a different amount of pictures now
@@ -290,7 +291,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     best_loss = curr_loss
                     model_all.save_weights(model_path)
                 try:
-                    if epoch_num % C.save_every == 0:
+                    if epoch_num % C.save_every == 0 and epoch_num != 0:
                         checkpoint_path = C.output_folder + "model_frcnn" + str(epoch_num) + ".hdf5"
                         print("saving weights of epoch:", epoch_num, "to", checkpoint_path)
                         model_all.save_weights(checkpoint_path)

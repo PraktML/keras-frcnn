@@ -1,5 +1,5 @@
 from __future__ import division
-import os, glob
+import os
 import cv2
 import numpy as np
 import sys
@@ -29,7 +29,7 @@ parser.add_option("--print_classes", dest="print_classes", action="store_true", 
 (options, args) = parser.parse_args()
 
 if not options.run_folder:  # if filename is not given
-    run_folder = scripts.helper.chose_from_folder("runs/", "--run_folder") + "/"
+    run_folder = scripts.helper.chose_from_folder("runs/", "*", "--run_folder") + "/"
 else:
     run_folder = options.run_folder + "" if options.run_folder[-1] == '/' else '/'
 config_output_filename = run_folder + "config.pickle"
@@ -37,17 +37,22 @@ config_output_filename = run_folder + "config.pickle"
 with open(config_output_filename, 'rb') as f_in:
     C = pickle.load(f_in)
 
-model_list = glob.glob(run_folder + "*.hdf5")
-if not options.model and len(model_list) > 1:
-    print("There are several possible models to load, choose:")
-    run_list = sorted(model_list)
-    for idx, model_name in enumerate(model_list):
-        print("[{}] {}".format(idx, model_name))
-    model_path = str(model_list[int(input("Enter number: "))])
-elif options.model:
+if options.model:
     model_path = options.model
 else:
-    model_path = run_folder + C.model_name
+    model_path = scripts.helper.chose_from_folder(run_folder, "*.hdf5", "--model")
+
+# model_list = glob.glob(run_folder + "*.hdf5")
+# if not options.model and len(model_list) > 1:
+#     print("There are several possible models to load, choose:")
+#     run_list = sorted(model_list)
+#     for idx, model_name in enumerate(model_list):
+#         print("[{}] {}".format(idx, model_name))
+#     model_path = str(model_list[int(input("Enter number: "))])
+# elif options.model:
+#     model_path = options.model
+# else:
+#     model_path = run_folder + C.model_name
 config_output_filename = run_folder + "config.pickle"
 print("Specified Model for Testing:", model_path)
 
