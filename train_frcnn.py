@@ -35,7 +35,7 @@ elif C.parser == 'simple':
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 print("train_frcnn.py", "--path", C.train_path, "--frcnn_weights", C.load_model,
-      "--num_epochs", C.num_epochs, "--epoch_length", C.epoch_length, "--save_every", C.save_every)
+      "--num_epochs", C.num_epochs, "--epoch_length", C.epoch_length, "--save_every", C.save_every, "--num_rois", C.num_rois)
 splits = None
 # if the splits already exist, we will load them in
 # delete this file if you are a different amount of pictures now

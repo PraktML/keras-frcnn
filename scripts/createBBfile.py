@@ -52,7 +52,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
         print("processing shot", shot['name'], "reading in", anno_file)
 
         if not os.path.isfile(anno_file):
-            print("Shot annotation file:", anno_file, "doesn't exist, skip")
+            print("Couldn't find shot annotation file:", anno_file, "skip")
             continue
         with open(anno_file, 'r') as file:
             csvreader = csv.reader(file, delimiter=',')

@@ -165,7 +165,7 @@ def create_config_read_parser(parser):
     C.save_every = options.save_every
 
     if not options.train_path:  # if filename is not given
-        C.train_path = scripts.helper.chose_from_folder("annotations/", "--path")
+        C.train_path = scripts.helper.chose_from_folder("annotations/", "*.txt", "--path")
     else:
         C.train_path = options.train_path
 

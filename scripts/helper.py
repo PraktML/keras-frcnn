@@ -1,6 +1,6 @@
 import os, glob
 
-def chose_from_folder(folder_path, file_extension="", missing_parameter=None):
+def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
     """
     :param folder_path: str path to the folder that shall be examined
     :param file_extension: filter for such files, e.g. '*.hdf5',

@@ -10,8 +10,8 @@ if os.name == 'nt': # on windows
 
 elif os.uname()[1]=="florian-ultra": # Florian
     BOXCARS116K_PATH = "/media/florian/PLATTE/programmieren/BoxCars116k/images/"
-    BOXCARS116K_JSON_FILE = BOXCARS116K_PATH + "json_data/dataset.json"
-    VRI_SHOTS_PATH = "/media/florian/PLATTE/programmieren/video_shots/"
+    BOXCARS116K_JSON_FILE = "/media/florian/PLATTE/programmieren/BoxCars116k/json_data/dataset.json"
+    VRI_SHOTS_PATH = "/media/florian/PLATTE/programmieren/VehicleReId/video_shots/"
 
 elif os.uname()[1]=="patrick": #TODO: hier den Pfad anpassen.
     BOXCARS116K_PATH = "/home/patrick/MLPrakt/Data/BoxCars116k/images/"

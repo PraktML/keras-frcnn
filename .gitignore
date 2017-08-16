@@ -103,4 +103,4 @@ annotations/*
 !annotations/.gitkeep 
 
 # PyCharm Idea Files
-.idea/*
+\.idea/
