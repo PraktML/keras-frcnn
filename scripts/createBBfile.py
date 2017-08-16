@@ -1,6 +1,6 @@
 import os
 import csv
-import settings
+import scripts.settings as settings
 import cv2
 import json
 import numpy as np
@@ -9,21 +9,22 @@ import numpy as np
 the 3D bounding boxes form VehicleReI into a front and a back bounding box. """
 
 
-LIMIT_OUTPUT = "" # only write the first n entries or "" for no limit
+LIMIT_OUTPUT = 100  # only write the first n entries or "" for no limit
 
 OUTPUT_FILE = "../annotations/"
 #OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
 OUTPUT_FILE += "bb_3Dreg.txt"
 OUTPUT_CUT = "cropped/"
 
-
-TARGET_PATH_VRI = "/home/patrick/MLPrakt/Data/VehicleReId/video_shots/" #"/media/mlprak1/Seagate Backup Plus Drive/VehicleReId/video_shots/" #  "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
+# this is what is added before entries
+TARGET_PATH_VRI = settings.SHOTS_FOLDER #"/home/patrick/MLPrakt/Data/VehicleReId/video_shots/" #"/media/mlprak1/Seagate Backup Plus Drive/VehicleReId/video_shots/" #  "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
 TARGET_NUMBER_FORMAT_VRI = '%06d'
-TARGET_SUFFIX_VRI = '.png'
+TARGET_SUFFIX_VRI = '.bmp'
 TARGET_CUT = TARGET_PATH_VRI+OUTPUT_CUT
-ANNOTATION_FOLDER = settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
+ANNOTATION_FOLDER = settings.SHOTS_FOLDER # settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
 
-TARGET_PATH_BOX = "/Users/kolja/Downloads/BoxCars116k/images/" #"BoxCars116k/images/"
+# this is what is added before the entries for BoxCar annotations
+TARGET_PATH_BOX = settings.BOXCARS_FOLDER # "/Users/kolja/Downloads/BoxCars116k/images/" #"BoxCars116k/images/"
 
 DATA_FORMAT = "3d_reg" # in ["3d_reg", "merge_areas"]
 

@@ -5,7 +5,15 @@ if os.name == 'nt': # on windows
     PROJECTS_BASEPATH = "C:/Users/Florian/PycharmProjects/"
     FZI_DATASETS = ""
 
-else: # on linux
+elif os.uname()[1]=="florian-ultra": # Florian
+    PLATTE_BASEPATH = "/media/florian/PLATTE/programmieren/"
+    PROJECTS_BASEPATH = "/media/florian/Windows8_OS/Users/Florian/PycharmProjects/"
+    FZI_DATASETS = None
+
+elif False and os.uname()[1]=="patrick": #
+    PLATTE_BASEPATH = "/home/patrick/MLPrakt/Data/"
+
+else: # at FZI
     PLATTE_BASEPATH = "/disk/no_backup/mlprak1/"#"/disk/ml/datasets/"#""/media/florian/PLATTE/programmieren/"
     PROJECTS_BASEPATH = "/media/florian/Windows8_OS/Users/Florian/PycharmProjects/"
     FZI_DATASETS = "/disk/ml/datasets/"

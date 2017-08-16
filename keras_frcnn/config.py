@@ -162,7 +162,7 @@ def create_config_read_parser(parser):
     C.save_every = options.save_every
 
     if not options.train_path:  # if filename is not given
-        parser.error('Error: path to training data must be specified. Pass --path to command line')
+        parser.error('Error: path to training e.g. "annotations/bb.txt" data must be specified. Pass --path to command line')
     C.train_path = options.train_path
 
     # specify the folder in which all the meta data is stored.

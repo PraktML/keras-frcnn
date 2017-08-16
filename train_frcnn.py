@@ -319,13 +319,13 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 break
 
         except Exception as e:
-            with open("error_log.txt", "a") as log:
+            with open(C.output_folder + "error_log.txt", "a") as log:
                 log.write(str(e))
-                log.write("---")
+                log.write("---\n")
             print('Exception:: {}'.format(e))
 
-            # raise
-            continue
+            raise
+            #continue
 
     # with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
     #    epoch_f.write(epoch_num)
