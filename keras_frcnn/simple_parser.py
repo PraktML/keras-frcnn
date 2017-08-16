@@ -4,8 +4,8 @@ import scripts.settings
 import numpy as np
 
 
-def get_data(input_path, image_folder='', train_test_split=None):
-    assert image_folder == '' or image_folder[-1] == '/'
+def get_data(input_path, train_test_split=None):
+
     found_bg = False
     all_imgs = {}
 
@@ -39,7 +39,7 @@ def get_data(input_path, image_folder='', train_test_split=None):
                  class_name
                  ) = line_split
             # add prefix to filename
-            filename = image_folder + filename
+            filename = scripts.settings.variable_path_to_abs(filename)
 
             if class_name not in classes_count:
                 classes_count[class_name] = 1
@@ -57,7 +57,7 @@ def get_data(input_path, image_folder='', train_test_split=None):
                 # each image file is only read in once, but there will be several BB in it.
                 all_imgs[filename] = {}
 
-                print("Simple Parser: read", filename)
+                print("Simple Parser:", idx, "read", filename)
                 img = cv2.imread(filename)
                 if img is None:
                     raise (FileNotFoundError(filename))
@@ -76,7 +76,6 @@ def get_data(input_path, image_folder='', train_test_split=None):
                 else:
                     all_imgs[filename]['imageset'] = train_test_split[filename]
 
-            print(idx, "append to", filename, ".")
             idx += 1
             try:
                 all_imgs[filename]['bboxes'].append(

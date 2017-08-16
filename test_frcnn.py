@@ -11,7 +11,7 @@ from keras import backend as K
 from keras.layers import Input
 from keras.models import Model
 from keras_frcnn import roi_helpers
-import math
+import scripts.helper
 
 sys.setrecursionlimit(40000)
 
@@ -29,11 +29,7 @@ parser.add_option("--print_classes", dest="print_classes", action="store_true", 
 (options, args) = parser.parse_args()
 
 if not options.run_folder:  # if filename is not given
-    print('Path to run folder must be specified. Pass --run_folder to command line or chose from the list:')
-    run_list = sorted(os.listdir("runs/"))
-    for idx, run_name in enumerate(run_list):
-        print("[{}] {}".format(idx, run_name))
-    run_folder = "runs/" + str(run_list[int(input("Enter number: "))] + "/")
+    run_folder = scripts.helper.chose_from_folder("runs/", "--run_folder") + "/"
 else:
     run_folder = options.run_folder + "" if options.run_folder[-1] == '/' else '/'
 config_output_filename = run_folder + "config.pickle"

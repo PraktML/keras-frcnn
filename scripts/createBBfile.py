@@ -5,40 +5,32 @@ import cv2
 import json
 import numpy as np
 
-""" Convert the notations form the following datasets to be used with Keras-frcnn in the simple data reader mode
-the 3D bounding boxes form VehicleReI into a front and a back bounding box. """
-
-
-LIMIT_OUTPUT = 100  # only write the first n entries or "" for no limit
-
-OUTPUT_FILE = "../annotations/"
-#OUTPUT_FILE += "bb"+str(LIMIT_OUTPUT)+".txt"
-OUTPUT_FILE += "bb_3Dreg.txt"
-OUTPUT_CUT = "cropped/"
-
-# this is what is added before entries
-TARGET_PATH_VRI = settings.SHOTS_FOLDER #"/home/patrick/MLPrakt/Data/VehicleReId/video_shots/" #"/media/mlprak1/Seagate Backup Plus Drive/VehicleReId/video_shots/" #  "/data/mlprak1/VehicleReId/video_shots/" # ""VehicleReId/video_shots/"  # no spaces possible here!
-TARGET_NUMBER_FORMAT_VRI = '%06d'
-TARGET_SUFFIX_VRI = '.bmp'
-TARGET_CUT = TARGET_PATH_VRI+OUTPUT_CUT
-ANNOTATION_FOLDER = settings.SHOTS_FOLDER # settings.PLATTE_BASEPATH + "VehicleReId/video_shots/"
-
-# this is what is added before the entries for BoxCar annotations
-TARGET_PATH_BOX = settings.BOXCARS_FOLDER # "/Users/kolja/Downloads/BoxCars116k/images/" #"BoxCars116k/images/"
+""" 
+Convert the notations form the following datasets to be used with Keras-frcnn in the simple data reader mode
+the 3D bounding boxes form VehicleReI into a front and a back bounding box. 
+The absolute Paths are replaced with relative variables
+"""
 
 DATA_FORMAT = "3d_reg" # in ["3d_reg", "merge_areas"]
+LIMIT_OUTPUT = 100  # only write the first n entries or "" for no limit
 
 
-counter = 0
-min_y = 10000000
-max_y = 0
-cut = 300 # maximum pixels to be cut
-puffer = 20 # puffer between highest y-coordinate in the picture and the cut
+NUMBER_FORMAT_VRI = '%06d'
+SUFFIX_VRI = '.bmp'
 
+OUTPUT_FILE = "../annotations/"
+OUTPUT_FILE += "bb_3DregCrop.txt"
+OUTPUT_CUT = "cropped/"
 
+# shall the VRI images be cropped?
+USE_VRI_CUTTING = True
+# output format of the cropped images for VRI
+SUFFIX_VRI_CUT = '.png'
 
-if not os.path.exists(TARGET_CUT):
-    os.makedirs(TARGET_CUT)
+VRI_CUT_MIN_Y = 10000000
+VRI_CUT_MAX_Y = 0
+VRI_CUT_NO_PIXELS = 300 # maximum pixels to be cut
+VRI_CUT_BUFFER = 20 # buffer between highest y-coordinate in the picture and the cut
 
 
 with open(OUTPUT_FILE, 'w+') as outfile:
@@ -52,17 +44,15 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                          ]
     csvwriter = csv.DictWriter(outfile, delimiter=',', lineterminator='\n',
                                fieldnames=fieldnames_area_merging if DATA_FORMAT == "merge_areas" else fieldnames_3d_reg)
-
-
-    print("write to", OUTPUT_FILE)
-
-
+    print("Will create annotation in file:", OUTPUT_FILE)
+    counter = 0
     for shot in settings.FRAMES_VRI:
         if counter == 'break': break
-        print("processing shot", shot['name'])
-        anno_file = ANNOTATION_FOLDER + shot['name'] + "_annotations.txt"
+        anno_file = settings.VRI_SHOTS_PATH + shot['name'] + "_annotations.txt"
+        print("processing shot", shot['name'], "reading in", anno_file)
+
         if not os.path.isfile(anno_file):
-            print("Annotation File:", anno_file, "doesn't exist, skip")
+            print("Shot annotation file:", anno_file, "doesn't exist, skip")
             continue
         with open(anno_file, 'r') as file:
             csvreader = csv.reader(file, delimiter=',')
@@ -89,58 +79,65 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 except ValueError:
                     print("Warning: invalid line in:", line)
                     continue
-
-
+                x_points = [upperPointShort_x, upperPointCorner_x, upperPointShort_x, crossCorner_x, shortSide_x, corner_x, longSide_x, lowerCrossCorner_x]
+                y_points = [upperPointShort_y, upperPointCorner_y, upperPointShort_y, crossCorner_y, shortSide_y, corner_y, longSide_y, lowerCrossCorner_y]
 
                 if frame < shot['from']:
                     continue
                 if frame > shot['to']:
                     break
-
                 if frame + shot['offset'] == 2818 and shot['name'] == "2B" or frame + shot['offset'] == 9262 and shot['name'] == "3A":
                     print("manually skipped this pictures!!!!") #TODO: fix this, either get the frame or find a nicer way
                     continue
-                raw_frame_path =  TARGET_PATH_VRI + shot['name'] + "/" + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
-                frame_path =  TARGET_CUT + shot['name'] + "_" + TARGET_NUMBER_FORMAT_VRI % (frame + shot['offset']) + TARGET_SUFFIX_VRI
-                img_path = TARGET_CUT + shot['name'] + "/"
 
-                if DATA_FORMAT == "3d_reg":
-                    x_points = [upperPointShort_x, upperPointCorner_x, upperPointShort_x, crossCorner_x, shortSide_x, corner_x, longSide_x, lowerCrossCorner_x]
-                    y_points = [upperPointShort_y, upperPointCorner_y, upperPointShort_y, crossCorner_y, shortSide_y, corner_y, longSide_y, lowerCrossCorner_y]
+                ##############################################################
+                #### if specified, crop some part of the VRI images  #########
+                ##############################################################
 
-                    
+                if not USE_VRI_CUTTING:
+                    frame_path_variable = "$VRI_SHOTS_PATH$" + shot['name'] + "_" + NUMBER_FORMAT_VRI % (frame + shot['offset']) + SUFFIX_VRI
+                    cutter = 0
 
-                    #Crop Images
+                else: # Crop Images
+                    if not os.path.exists(settings.VRI_SHOTS_PATH + OUTPUT_CUT):
+                        os.makedirs(settings.VRI_SHOTS_PATH + OUTPUT_CUT)
+
+                    frame_path_variable = "$VRI_SHOTS_PATH$" + OUTPUT_CUT + shot['name'] + "_" + NUMBER_FORMAT_VRI % (frame + shot['offset']) + SUFFIX_VRI_CUT
+                    raw_frame_path = settings.VRI_SHOTS_PATH + shot['name'] + "/" + shot['name'] + "_" + NUMBER_FORMAT_VRI % (frame + shot['offset']) + SUFFIX_VRI
+
                     helpmin_y = min([y for y in y_points])
                     helpmax_y = max([y for y in y_points])
-                    if helpmin_y < min_y:
-                        min_y = helpmin_y
-                    if helpmax_y > max_y:
-                        max_y = helpmax_y
+                    if helpmin_y < VRI_CUT_MIN_Y:
+                        VRI_CUT_MIN_Y = helpmin_y
+                    if helpmax_y > VRI_CUT_MAX_Y:
+                        VRI_CUT_MAX_Y = helpmax_y
 
-                    cutter = min(helpmin_y-puffer, cut)
+                    cutter = min(helpmin_y - VRI_CUT_BUFFER, VRI_CUT_NO_PIXELS)
                     y_points = [y - cutter for y in y_points]
-
 
                     img = cv2.imread(raw_frame_path)
                     height, width, channels = img.shape
 
                     crop_img = img[cutter:height, :]  # Crop from x, y, w, h -> 100, 200, 300, 400
-                    # NOTE: its img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
+                    # NOTE: it's img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
 
-                    cv2.imwrite(frame_path, crop_img)
-                    print("cropped image: "+str(frame_path))
+                    cv2.imwrite(settings.variable_path_to_abs(frame_path_variable), crop_img)
+                    print("cropped image: " + str(frame_path_variable))
 
+                #####################################################################
+                ################   CREATING DATA FORMAT 3D-REG   ####################
+                #####################################################################
 
+                if DATA_FORMAT == "3d_reg":
 
                     facing_left = upperPointShort_x > upperPointCorner_x
-                    csvwriter.writerow({"filepath": frame_path,
+                    csvwriter.writerow({"filepath": frame_path_variable,
                                         "x1": min(x_points),        "y1": min(y_points),
                                         "x2": max(x_points),        "y2": max(y_points),
                                         "top_front_right_x": upperPointShort_x if facing_left else upperPointCorner_x,
-                                        "top_front_right_y": upperPointShort_y - cutter if facing_left else upperPointCorner_y  - cutter,
+                                        "top_front_right_y": upperPointShort_y - cutter if facing_left else upperPointCorner_y - cutter,
                                         "top_front_left_x": upperPointCorner_x if facing_left else upperPointShort_x,
-                                        "top_front_left_y": upperPointCorner_y - cutter if facing_left else upperPointShort_y  - cutter,
+                                        "top_front_left_y": upperPointCorner_y - cutter if facing_left else upperPointShort_y - cutter,
                                         "top_back_left_x": crossCorner_x if facing_left else upperPointLong_x,
                                         "top_back_left_y": crossCorner_y - cutter if facing_left else upperPointLong_y  - cutter,
                                         "top_back_right_x": upperPointLong_x if facing_left else crossCorner_x,
@@ -151,16 +148,22 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                                         "bot_front_left_x": corner_x if facing_left else shortSide_x,
                                         "bot_front_left_y": corner_y - cutter if facing_left else shortSide_y - cutter,
                                         "bot_back_left_x": lowerCrossCorner_x if facing_left else longSide_x,
-                                        "bot_back_left_y": lowerCrossCorner_y  - cutter if facing_left else longSide_y  - cutter,
+                                        "bot_back_left_y": lowerCrossCorner_y - cutter if facing_left else longSide_y  - cutter,
                                         "bot_back_right_x": longSide_x if facing_left else lowerCrossCorner_x,
-                                        "bot_back_right_y": longSide_y  - cutter if facing_left else lowerCrossCorner_y  - cutter,
+                                        "bot_back_right_y": longSide_y - cutter if facing_left else lowerCrossCorner_y  - cutter,
                                         "class_name": "3DBB"
                                         })
+
+                #####################################################################
+                ################   CREATING DATA MERGE AREAS     ####################
+                #####################################################################
+
+
                 else:
                     # outer boundingbox: top left and bottom right corner
                     # (green_x, cyan_y) - (red_x, black_y)
                     csvwriter.writerow({
-                        "filepath": frame_path,
+                        "filepath": frame_path_variable,
                         "x1": longSide_x,        "y1": crossCorner_y,
                         "x2": upperPointShort_x, "y2": corner_y,
                         "class_name": "outer"
@@ -168,7 +171,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     # facing boundingbox: described by red and black, on the left side of the picture they are facing us "frontBB" on the right "backBB"
                     # (black_x, red_y) - (red_x, black_y)
                     csvwriter.writerow({
-                        "filepath": frame_path,
+                        "filepath": frame_path_variable,
                         "x1": corner_x,        "y1": upperPointShort_y,
                         "x2": upperPointShort_x, "y2": corner_y,
                         "class_name": "front" if shot["sep_m"] * corner_x + shot["sep_y"] < corner_y else "back"
@@ -176,7 +179,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     # (facing) side boundingbox: described by white and black
                     # (white_x, white_y) - (black_x, black_y)
                     csvwriter.writerow({
-                        "filepath": frame_path,
+                        "filepath": frame_path_variable,
                         "x1": upperPointLong_x, "y1": upperPointLong_y,
                         "x2": corner_x, "y2": corner_y,
                         "class_name": "side"
@@ -184,18 +187,21 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     # (top) side boundingbox: described by white and black
                     # (white_x, cyan_y) - (red_x, yellow_y)
                     csvwriter.writerow({
-                        "filepath": frame_path,
+                        "filepath": frame_path_variable,
                         "x1": upperPointLong_x, "y1": crossCorner_y,
                         "x2": upperPointShort_x, "y2": upperPointCorner_y,
                         "class_name": "top"
                     })
 
-        print(shot['name'])
-        print("min: " + str(min_y))
-        print("max: " + str(max_y))
+            # end for loop iterating over VRI
 
-    with open(settings.BOXCARS_FOLDER + "json_data/dataset.json") as jsonfile:
-        print("read in", settings.BOXCARS_FOLDER + "json_data/dataset.json")
+        #
+        # print(shot['name'])
+        # print("min: " + str(min_y))
+        # print("max: " + str(max_y))
+
+    with open(settings.BOXCARS116K_JSON_FILE) as jsonfile:
+        print("read in", settings.BOXCARS116K_JSON_FILE)
         data = json.load(jsonfile)["samples"]
 
         instances = []
@@ -225,7 +231,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
 
         print("go through instances")
         for instance in instances:
-            frame_path = TARGET_PATH_BOX + instance["path"]
+            frame_path_variable = "$BOXCARS116K_PATH$" + instance["path"]
             # outer boundingbox: top left and bottom right corner
             # (green_x, cyan_y) - (red_x, black_y)
             points = np.array([(int(xy[0]-instance["3DBB_offset"][0]), int(xy[1]-instance["3DBB_offset"][1]))
@@ -235,8 +241,12 @@ with open(OUTPUT_FILE, 'w+') as outfile:
             to_cam= instance['to_camera']
             offset = lambda v, towards_camera: (((v + 2) % 4) + ((v // 4) * 4)) if not towards_camera else v
 
+            #####################################################################
+            ################   CREATING DATA FORMAT 3D-REG   ####################
+            #####################################################################
+
             if DATA_FORMAT == "3d_reg":
-                csvwriter.writerow({"filepath": frame_path,
+                csvwriter.writerow({"filepath": frame_path_variable,
                                     "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
                                     "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
                                     "top_front_right_x": points[offset(0, to_cam)][0], "top_front_right_y": points[offset(0, to_cam)][1],
@@ -249,12 +259,18 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                                     "bot_back_right_x": points[offset(7, to_cam)][0], "bot_back_right_y": points[offset(7, to_cam)][1],
                                     "class_name": "3DBB"
                                     })
+
+                #####################################################################
+                ################   CREATING DATA MERGE AREAS     ####################
+                #####################################################################
+
+
             else:
                 points_facing = points[[0,1,4,5], :]
                 points_side = points[[1,2,5,6], :]
                 points_top = points[[0,1,2,3], :]
                 csvwriter.writerow({
-                    "filepath": frame_path,
+                    "filepath": frame_path_variable,
                     "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
                     "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
                     "class_name": "outer"
@@ -262,7 +278,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 # facing boundingbox: described by red and black, on the left side of the picture they are facing us "frontBB" on the right "backBB"
                 # (black_x, red_y) - (red_x, black_y)
                 csvwriter.writerow({
-                    "filepath": frame_path,
+                    "filepath": frame_path_variable,
                     "x1": min([point[0] for point in points_facing]),        "y1": min([point[1] for point in points_facing]),
                     "x2": max([point[0] for point in points_facing]),        "y2": max([point[1] for point in points_facing]),
                     "class_name": "front" if instance["to_camera"] else "back"
@@ -270,17 +286,15 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 # (facing) side boundingbox: described by white and black
                 # (white_x, white_y) - (black_x, black_y)
                 csvwriter.writerow({
-                    "filepath": frame_path,
+                    "filepath": frame_path_variable,
                     "x1": min([point[0] for point in points_side]),        "y1": min([point[1] for point in points_side]),
                     "x2": max([point[0] for point in points_side]),        "y2": max([point[1] for point in points_side]),
                     "class_name": "side"
                 })
                 # (top) side boundingbox: described by
                 csvwriter.writerow({
-                    "filepath": frame_path,
+                    "filepath": frame_path_variable,
                     "x1": min([point[0] for point in points_top]),        "y1": min([point[1] for point in points_top]),
                     "x2": max([point[0] for point in points_top]),        "y2": max([point[1] for point in points_top]),
                     "class_name": "top"
                 })
-
-

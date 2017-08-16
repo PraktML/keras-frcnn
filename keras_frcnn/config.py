@@ -2,6 +2,7 @@ from keras import backend as K
 import os
 from shutil import copy2
 import pickle
+import scripts.helper
 
 class Config:
     def __init__(self):
@@ -162,8 +163,9 @@ def create_config_read_parser(parser):
     C.save_every = options.save_every
 
     if not options.train_path:  # if filename is not given
-        parser.error('Error: path to training e.g. "annotations/bb.txt" data must be specified. Pass --path to command line')
-    C.train_path = options.train_path
+        C.train_path = scripts.helper.chose_from_folder("annotations/", "--path")
+    else:
+        C.train_path = options.train_path
 
     # specify the folder in which all the meta data is stored.
     if not options.output_folder:  # set it to current date/time
@@ -174,7 +176,7 @@ def create_config_read_parser(parser):
         if not os.path.exists(C.output_folder):
             input("Output folder" + str(C.output_folder) + "doesn't exist. Press any key to create it.")
     os.makedirs(C.output_folder)
-    copy2(options.train_path, C.output_folder)
+    copy2(C.train_path, C.output_folder)
 
 
     # specify input and output of weights
@@ -185,7 +187,5 @@ def create_config_read_parser(parser):
     else:
         C.load_model = None  # this will actually be loaded, might change when training is resumed
     C.model_name = options.output_weight_path  # within run folder
-
-
 
     return C

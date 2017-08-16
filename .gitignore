@@ -104,3 +104,5 @@ annotations/*
 
 # PyCharm Idea Files
 .idea/*
+
+\.idea/

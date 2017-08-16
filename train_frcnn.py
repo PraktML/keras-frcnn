@@ -23,10 +23,6 @@ from keras.utils import generic_utils
 # from keras.callbacks import TensorBoard
 
 
-IMAGE_FOLDER = ""  # scripts.settings.PLATTE_BASEPATH
-# IMAGE_FOLDER = "images/"
-
-
 sys.setrecursionlimit(40000)
 parser = OptionParser()
 
@@ -47,7 +43,7 @@ if os.path.exists(C.output_folder + "splits.pickle"):
         splits = pickle.load(splits_f)
 
 all_imgs_dict, classes_count, class_mapping = get_data(
-    C.train_path, image_folder=IMAGE_FOLDER, train_test_split=splits)
+    C.train_path, train_test_split=splits)
 all_imgs = []
 for key in all_imgs_dict:
     all_imgs.append(all_imgs_dict[key])

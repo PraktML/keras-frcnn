@@ -6,7 +6,7 @@ import shutil
 import os
 import cv2
 #SHOTS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]
-OUT_FOLDER = scripts.settings.BOXCARS_FOLDER + "visualize/"
+OUT_FOLDER = scripts.settings.BOXCARS116K_PATH + "visualize/"
 if os.path.exists(OUT_FOLDER):
     shutil.rmtree(OUT_FOLDER)
     os.makedirs(OUT_FOLDER)
@@ -30,7 +30,7 @@ COLORS = [(0, 0, 255),      # red
 
 
 
-with open(scripts.settings.BOXCARS_FOLDER+"json_data/dataset.json") as jsonfile:
+with open(scripts.settings.BOXCARS116K_JSON_FILE) as jsonfile:
     data = json.load(jsonfile)["samples"]
 
 instances = []
@@ -45,7 +45,7 @@ samples = [instances[idx] for idx in samples_idx]
 
 for sample in samples:
 
-            frame_path = scripts.settings.BOXCARS_FOLDER + "images/" + sample[0]
+            frame_path = scripts.settings.BOXCARS116K_PATH +  sample[0]
 
             print("analyze", frame_path)
             img = cv2.imread(frame_path)
