@@ -37,7 +37,7 @@ class Config:
         # size to resize the smallest side of the image
         self.im_size = 600
 
-        # image channel-wise mean to subtract
+        # image channel-wise mean to subtract, (pre-processing)
         self.img_channel_mean = [103.939, 116.779, 123.68]
         self.img_scaling_factor = 1.0
 

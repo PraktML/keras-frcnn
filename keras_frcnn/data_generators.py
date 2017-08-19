@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import numpy as np
 import cv2
 import random
-import copy
 from . import data_augment
 import threading
 import itertools
@@ -75,7 +74,12 @@ class SampleSelector:
         self.curr_class = next(self.class_cycle)
 
     def skip_sample_for_balanced_class(self, img_data):
-
+        """
+        :param img_data of the image that the generator originally planned to yield next
+        :return True if this image contains the next class, otherwise False
+            This mechanism provides that every class is at least present every num_classes times
+            as the class_cycle iterates through them in order and demands this class.
+        """
         class_in_img = False
 
         for bbox in img_data['bboxes']:
@@ -94,21 +98,45 @@ class SampleSelector:
 
 
 def calc_rpn(C, img_data, width, height, resized_width, resized_height):
+    """
+
+    :param C: Config object, to e.g. read if the img_data shall be augmented
+    :param img_data: the path and bb info for one image
+    :param width: original width of that image
+    :param height: original height of that image
+    :param resized_width: what the image was resized to (e.g. smallest side 600)
+    :param resized_height: what the image was resized to (e.g. smallest side 600)
+    :return:  tuple of (y_rpn_cls, y_rpn_regr)
+        y_rpn_cls = np.concatenate([y_is_box_valid, y_rpn_overlap], axis=1)
+            shape (1, 2*num_anchors, output_height, output_width)
+            the first num_anchors are in [0,1] if the anchor (position&shape) shall be used for training
+            and the second are also in [0,1] say if the anchor has an overlap (>0.7) with a ground truth bounding box
+
+        y_rpn_regr = np.concatenate([np.repeat(y_rpn_overlap, 4, axis=1), y_rpn_regr], axis=1)
+            shape (1, 2*4*num_anchors, output_height, output_width)
+            there are always 4 entries along axis=1 that belong together refering to one anchor (position&shape)
+            for the first 4*num_anchors the four values are always identical in [0,1] and describe if that anchor
+             (position&shape) have and overlap (>0.7) with a GT bounding box
+            for the second 4*num_anchors these four values are [tx, ty, tw, th], the difference of that anchor to
+             the closest GT bounding box.
+    """
     downscale = float(C.rpn_stride)
     anchor_sizes = C.anchor_box_scales
     anchor_ratios = C.anchor_box_ratios
     num_anchors = len(anchor_sizes) * len(anchor_ratios)
 
-    # calculate the output map size based on the network architecture
+    # calculate the output map size based on the network architecture, values hardcoded in get_img_output_length
     (output_width, output_height) = get_img_output_length(resized_width, resized_height)
 
     n_anchratios = len(anchor_ratios)
 
-    # initialise empty output objectives
-    y_rpn_overlap = np.zeros((output_height, output_width, num_anchors))
-    y_is_box_valid = np.zeros((output_height, output_width, num_anchors))
-    y_rpn_regr = np.zeros((output_height, output_width, num_anchors * 4))
+    # initialise empty output objectives, for each anchor there is one entry in each of the three arrays
+    y_rpn_overlap = np.zeros((output_height, output_width, num_anchors))  # 0: ('neg', 'neutral'), 1: ('pos')
+    y_is_box_valid = np.zeros((output_height, output_width, num_anchors))  # 0: ('neutral'), 1: ('neg', 'pos')
+    y_rpn_regr = np.zeros((output_height, output_width, num_anchors * 4))  # [tx, ty, tw, th]
+    # this tuple are regression values to the  closest ground truth bounding box
 
+    # potentially an image has several objects (bounding boxes) in it.
     num_bboxes = len(img_data['bboxes'])
 
     num_anchors_for_bbox = np.zeros(num_bboxes).astype(int)
@@ -125,14 +153,19 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
         gta[bbox_num, 1] = bbox['x2'] * (resized_width / float(width))
         gta[bbox_num, 2] = bbox['y1'] * (resized_height / float(height))
         gta[bbox_num, 3] = bbox['y2'] * (resized_height / float(height))
+        # TODO: also resize the 8 bounding box values, not really necessary as the anchors stay 2D
 
     # rpn ground truth
-
-    for anchor_size_idx in range(len(anchor_sizes)):
-        for anchor_ratio_idx in range(n_anchratios):
+    for anchor_size_idx in range(len(anchor_sizes)):  # e.g. [128, 256, 512]
+        for anchor_ratio_idx in range(n_anchratios):  # e.g. [[1, 1], [1, 2], [2, 1]]
+            # width, height of this anchor
             anchor_x = anchor_sizes[anchor_size_idx] * anchor_ratios[anchor_ratio_idx][0]
             anchor_y = anchor_sizes[anchor_size_idx] * anchor_ratios[anchor_ratio_idx][1]
 
+            # run over picture and test anchor box on all positions
+            # the downscale parameter is the RPN stride size and can be chosen in the config (e.g. 16)
+            # ix would only have to go to output_width if downscale==1, otherwise they are skipped below.
+            # TODO: rename downscale to rpn_stride
             for ix in range(output_width):
                 # x-coordinates of the current anchor box
                 x1_anc = downscale * (ix + 0.5) - anchor_x / 2
@@ -159,6 +192,7 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
                     # note that this is different from the best IOU for a GT bbox
                     best_iou_for_loc = 0.0
 
+                    # iterate over all objects (bounding boxes) in this image.
                     for bbox_num in range(num_bboxes):
 
                         # get IOU of the current GT box and the current anchor box
@@ -166,35 +200,40 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
                                        [x1_anc, y1_anc, x2_anc, y2_anc])
                         # calculate the regression targets if they will be needed
                         if curr_iou > best_iou_for_bbox[bbox_num] or curr_iou > C.rpn_max_overlap:
+                            # center points of GT bb and anchor
                             cx = (gta[bbox_num, 0] + gta[bbox_num, 1]) / 2.0
                             cy = (gta[bbox_num, 2] + gta[bbox_num, 3]) / 2.0
                             cxa = (x1_anc + x2_anc) / 2.0
                             cya = (y1_anc + y2_anc) / 2.0
 
+                            # difference of GT bb and anchor center normed by anchor sizes
                             tx = (cx - cxa) / (x2_anc - x1_anc)
                             ty = (cy - cya) / (y2_anc - y1_anc)
+                            # ratio of GT bb width and height to anchor width and height
                             tw = np.log((gta[bbox_num, 1] - gta[bbox_num, 0]) / (x2_anc - x1_anc))
                             th = np.log((gta[bbox_num, 3] - gta[bbox_num, 2]) / (y2_anc - y1_anc))
 
                         if img_data['bboxes'][bbox_num]['class'] != 'bg':
 
-                            # all GT boxes should be mapped to an anchor box, so we keep track of which anchor box was best
+                            # all GT boxes should be mapped to an anchor box, to keep track of which anchor box was best
                             if curr_iou > best_iou_for_bbox[bbox_num]:
                                 best_anchor_for_bbox[bbox_num] = [jy, ix, anchor_ratio_idx, anchor_size_idx]
                                 best_iou_for_bbox[bbox_num] = curr_iou
                                 best_x_for_bbox[bbox_num, :] = [x1_anc, x2_anc, y1_anc, y2_anc]
                                 best_dx_for_bbox[bbox_num, :] = [tx, ty, tw, th]
 
-                            # we set the anchor to positive if the IOU is >0.7 (it does not matter if there was another better box, it just indicates overlap)
+                            # we set the anchor to positive if the IOU is >0.7
+                            # (it does not matter if there was another better box, it just indicates overlap)
                             if curr_iou > C.rpn_max_overlap:
                                 bbox_type = 'pos'
                                 num_anchors_for_bbox[bbox_num] += 1
-                                # we update the regression layer target if this IOU is the best for the current (x,y) and anchor position
+                                # we update the regression layer target
+                                # if this IOU is the best for the current (x,y) and anchor position
                                 if curr_iou > best_iou_for_loc:
                                     best_iou_for_loc = curr_iou
                                     best_regr = (tx, ty, tw, th)
 
-                            # if the IOU is >0.3 and <0.7, it is ambiguous and no included in the objective
+                            # if the IOU is >0.3 and <0.7, it is ambiguous and not included in the objective
                             if C.rpn_min_overlap < curr_iou < C.rpn_max_overlap:
                                 # gray zone between neg and pos
                                 if bbox_type != 'pos':
@@ -211,26 +250,33 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
                         y_is_box_valid[jy, ix, anchor_ratio_idx + n_anchratios * anchor_size_idx] = 1
                         y_rpn_overlap[jy, ix, anchor_ratio_idx + n_anchratios * anchor_size_idx] = 1
                         start = 4 * (anchor_ratio_idx + n_anchratios * anchor_size_idx)
-                        y_rpn_regr[jy, ix, start:start + 4] = best_regr
+                        y_rpn_regr[jy, ix, start:start + 4] = best_regr  # 4 values are allocated for a anchor position
 
-    # we ensure that every bbox has at least one positive RPN region
-
+    # we ensure that every bbox has at least one positive RPN region, if there is at least one
     for idx in range(num_anchors_for_bbox.shape[0]):
         if num_anchors_for_bbox[idx] == 0:
             # no box with an IOU greater than zero ...
             if best_anchor_for_bbox[idx, 0] == -1:
                 continue
+            # set the anchor that hat the highest IoU with the current bounding box to refer to this bounding box
+            # and not to the one that it had the greatest IoU with!  Note: Could it be that an anchor is first assigned
+            # to one bounding box and then again to another one leaving the first one with no anchor in the end?
             y_is_box_valid[
-                best_anchor_for_bbox[idx, 0], best_anchor_for_bbox[idx, 1], best_anchor_for_bbox[
-                    idx, 2] + n_anchratios *
-                best_anchor_for_bbox[idx, 3]] = 1
+                best_anchor_for_bbox[idx, 0],
+                best_anchor_for_bbox[idx, 1],
+                best_anchor_for_bbox[idx, 2] + n_anchratios * best_anchor_for_bbox[idx, 3]
+            ] = 1
             y_rpn_overlap[
-                best_anchor_for_bbox[idx, 0], best_anchor_for_bbox[idx, 1], best_anchor_for_bbox[
-                    idx, 2] + n_anchratios *
-                best_anchor_for_bbox[idx, 3]] = 1
+                best_anchor_for_bbox[idx, 0],
+                best_anchor_for_bbox[idx, 1],
+                best_anchor_for_bbox[idx, 2] + n_anchratios * best_anchor_for_bbox[idx, 3]
+            ] = 1
             start = 4 * (best_anchor_for_bbox[idx, 2] + n_anchratios * best_anchor_for_bbox[idx, 3])
             y_rpn_regr[
-            best_anchor_for_bbox[idx, 0], best_anchor_for_bbox[idx, 1], start:start + 4] = best_dx_for_bbox[idx, :]
+            best_anchor_for_bbox[idx, 0],
+            best_anchor_for_bbox[idx, 1],
+            start:start + 4
+            ] = best_dx_for_bbox[idx, :]
 
     y_rpn_overlap = np.transpose(y_rpn_overlap, (2, 0, 1))
     y_rpn_overlap = np.expand_dims(y_rpn_overlap, axis=0)
@@ -241,6 +287,7 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
     y_rpn_regr = np.transpose(y_rpn_regr, (2, 0, 1))
     y_rpn_regr = np.expand_dims(y_rpn_regr, axis=0)
 
+    # a tuple of four (one for each axis) equally long 1D-Numpy arrays with all the indexes where the condition was True
     pos_locs = np.where(np.logical_and(y_rpn_overlap[0, :, :, :] == 1, y_is_box_valid[0, :, :, :] == 1))
     neg_locs = np.where(np.logical_and(y_rpn_overlap[0, :, :, :] == 0, y_is_box_valid[0, :, :, :] == 1))
 
@@ -250,15 +297,16 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
     # regions. We also limit it to 256 regions.
     num_regions = 256
 
-    if len(pos_locs[0]) > num_regions / 2:
-        val_locs = random.sample(range(len(pos_locs[0])), len(pos_locs[0]) - num_regions / 2)
-        y_is_box_valid[0, pos_locs[0][val_locs], pos_locs[1][val_locs], pos_locs[2][val_locs]] = 0
-        num_pos = num_regions / 2
+    if len(pos_locs[0]) > num_regions // 2:
+        val_locs = random.sample(range(len(pos_locs[0])), len(pos_locs[0]) - num_regions // 2)
+        y_is_box_valid[0, pos_locs[0][val_locs], pos_locs[1][val_locs], pos_locs[2][val_locs]] = 0  # these are not used
+        num_pos = num_regions // 2
 
     if len(neg_locs[0]) + num_pos > num_regions:
         val_locs = random.sample(range(len(neg_locs[0])), len(neg_locs[0]) - num_pos)
-        y_is_box_valid[0, neg_locs[0][val_locs], neg_locs[1][val_locs], neg_locs[2][val_locs]] = 0
+        y_is_box_valid[0, neg_locs[0][val_locs], neg_locs[1][val_locs], neg_locs[2][val_locs]] = 0  # these are not used
 
+    # TODO: it is really weird that they insert a new dimension and then don't use it.
     y_rpn_cls = np.concatenate([y_is_box_valid, y_rpn_overlap], axis=1)
     y_rpn_regr = np.concatenate([np.repeat(y_rpn_overlap, 4, axis=1), y_rpn_regr], axis=1)
 
@@ -293,6 +341,19 @@ def threadsafe_generator(f):
 
 
 def get_anchor_gt(all_img_data, class_count, C, backend, mode='train'):
+    """
+    :param all_img_data: paths and GT bounding boxes
+    :param class_count: histogram over how many times GT-BBs of each class occurred
+    :param C: config file
+    :param backend: 'tf' for tensorflow or 'th' for theano
+    :param mode: 'train' or something else, is passed to the function augment
+    :yield: a tuple  (x_img, [y_rpn_cls, y_rpn_regr], img_data_aug)
+        x_img: the (modifed) pixel values for the next picture
+        y_rpn_cls: shape (1, 2*num_anchors, height, width), is actually: [y_is_box_valid, y_rpn_overlap]
+        y_rpn_regr: shape (1, 2*4*num_anchors, height, width), actually: [4*y_rpn_overlap, y_rpn_regr]
+        img_data_aug: the position of the GT bounding boxes modified through the augmentation.
+    """
+
     # The following line is not useful with Python 3.5, it is kept for the legacy
     # all_img_data = sorted(all_img_data)
 
@@ -324,7 +385,7 @@ def get_anchor_gt(all_img_data, class_count, C, backend, mode='train'):
                 # get image dimensions for resizing
                 (resized_width, resized_height) = get_new_img_size(width, height, C.im_size)
 
-                # resize the image so that smalles side is length = 600px
+                # resize the image so that smallest side is length = 600px
                 x_img = cv2.resize(x_img, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
 
                 try:
@@ -334,7 +395,7 @@ def get_anchor_gt(all_img_data, class_count, C, backend, mode='train'):
 
                 # Zero-center by mean pixel, and preprocess image
 
-                x_img = x_img[:, :, (2, 1, 0)]  # BGR -> RGB
+                x_img = x_img[:, :, (2, 1, 0)]  # BGR (used by OpenCV historically) -> RGB
                 x_img = x_img.astype(np.float32)
                 x_img[:, :, 0] -= C.img_channel_mean[0]
                 x_img[:, :, 1] -= C.img_channel_mean[1]
@@ -344,6 +405,7 @@ def get_anchor_gt(all_img_data, class_count, C, backend, mode='train'):
                 x_img = np.transpose(x_img, (2, 0, 1))
                 x_img = np.expand_dims(x_img, axis=0)
 
+                # scale the second half of y_rpn_regr which corresponds to the [tx,ty,tw,th] values for regression
                 y_rpn_regr[:, y_rpn_regr.shape[1] // 2:, :, :] *= C.std_scaling
 
                 if backend == 'tf':

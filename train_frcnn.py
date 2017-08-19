@@ -8,10 +8,9 @@ from optparse import OptionParser
 import os
 import pickle
 import json
-import scripts.settings
 
 from keras import backend as K
-from keras.optimizers import Adam, SGD, RMSprop
+from keras.optimizers import Adam  # , SGD, RMSprop
 from keras.layers import Input
 from keras.models import Model
 from keras_frcnn import config, data_generators
@@ -35,7 +34,8 @@ elif C.parser == 'simple':
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 print("train_frcnn.py", "--path", C.train_path, "--frcnn_weights", C.load_model,
-      "--num_epochs", C.num_epochs, "--epoch_length", C.epoch_length, "--save_every", C.save_every, "--num_rois", C.num_rois)
+      "--num_epochs", C.num_epochs, "--epoch_length", C.epoch_length, "--save_every", C.save_every,
+      "--num_rois", C.num_rois)
 splits = None
 # if the splits already exist, we will load them in
 # delete this file if you are a different amount of pictures now
@@ -119,8 +119,10 @@ else:
     except:
         print('Could not load pretrained model weights from {}. Weights can be found at {} and {}'.format(
             C.base_net_weights,
-            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
-            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/'
+            'resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
+            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/'
+            'resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
 
 optimizer = Adam(lr=1e-4)
@@ -162,22 +164,25 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 print('Average number of overlapping bounding boxes from RPN = {} for {} previous iterations'.format(
                     mean_overlapping_bboxes, C.epoch_length))
                 if mean_overlapping_bboxes == 0:
-                    print(
-                        'RPN is not producing bounding boxes that overlap the ground truth boxes. Check RPN settings or keep training.')
+                    print('RPN is not producing bounding boxes that overlap the ground truth boxes.'
+                          'Check RPN settings or keep training.')
 
-            X, Y, img_data = next(data_gen_train)  # x_img, [y_rpn_cls, y_rpn_regr], img_data_aug
+            X, Y, img_data = next(data_gen_train)
+            # x_img, [y_rpn_cls=[y_is_box_valid, y_rpn_overlap], y_rpn_regr=[4*y_rpn_overlap, y_rpn_regr]], img_data_aug
             # shape            (1,38,67,18)
             loss_rpn = model_rpn.train_on_batch(X, Y)
 
             P_rpn = model_rpn.predict_on_batch(X)
+            # predictions for all anchor positions&shapes are they valid (<0.3 | >0.7) are overlapping (>0.7)
+            # and how to regress to the next closest ground truth bounding box
 
             R = roi_helpers.rpn_to_roi(P_rpn[0], P_rpn[1], C, K.image_dim_ordering(), use_regr=True, overlap_thresh=0.7,
                                        max_boxes=300)
-
             # note: calc_iou converts from (x1,y1,x2,y2) to (x,y,w,h) format
             X2, Y1, Y2 = roi_helpers.calc_iou(R, img_data, C, class_mapping)
 
             if X2 is None:
+                # best IoU of each RoI is below threshold C.classifier_min_overlap
                 rpn_accuracy_rpn_monitor.append(0)
                 rpn_accuracy_for_epoch.append(0)
                 continue  # if no regions are found train again.
@@ -223,8 +228,10 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 else:
                     sel_samples = random.choice(pos_samples)
 
-            loss_class = model_classifier.train_on_batch([X, X2[:, sel_samples, :]],
-                                                         [Y1[:, sel_samples, :], Y2[:, sel_samples, :]])
+            loss_class = model_classifier.train_on_batch(
+                x=[X, X2[:, sel_samples, :]],
+                y=[Y1[:, sel_samples, :], Y2[:, sel_samples, :]]
+            )
 
             losses[iter_num, 0] = loss_rpn[1]
             losses[iter_num, 1] = loss_rpn[2]
@@ -236,12 +243,12 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             iter_num += 1
 
             #
-            #           x_roi         y_cls, y_reg
+            # x_roi         y_cls, y_reg
             #
-            #             X->    RPN -->  Y             X  ->   CLASS  ->   Y1     y_class_num
-            #             |               |             X2 ->    NET   ->   Y2     [y_class_reg_label, y_class_reg_coords]
-            #             |               |
-            #             -------------------helper--->X2,Y1,Y2
+            # X->    RPN -->  Y             X  ->   CLASS  ->   Y1     y_class_num
+            # |               |             X2 ->    NET   ->   Y2     [y_class_reg_label, y_class_reg_coords]
+            # |               |
+            # -------------------helper--->X2,Y1,Y2
 
             progbar.update(iter_num,
                            [('rpn_cls', np.mean(losses[:iter_num, 0])), ('rpn_regr', np.mean(losses[:iter_num, 1])),
@@ -266,7 +273,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 #     print ("got:", outs)
                 #     print ("target:", Y)
                 #     break
-
 
                 elapsed_time = time.time() - start_time
                 if C.verbose:
@@ -322,7 +328,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             print('Exception:: {}'.format(e))
 
             raise
-            #continue
+            # continue
 
     # with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
     #    epoch_f.write(epoch_num)
