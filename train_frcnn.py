@@ -8,6 +8,7 @@ from optparse import OptionParser
 import os
 import pickle
 import json
+import cv2
 
 from keras import backend as K
 from keras.optimizers import Adam  # , SGD, RMSprop
@@ -17,6 +18,7 @@ from keras_frcnn import config, data_generators
 from keras_frcnn import losses as losses
 from keras_frcnn import resnet as nn
 import keras_frcnn.roi_helpers as roi_helpers
+import scripts.helper as helper
 from keras.utils import generic_utils
 
 # from keras.callbacks import TensorBoard
@@ -172,14 +174,18 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             # shape            (1,38,67,18)
             loss_rpn = model_rpn.train_on_batch(X, Y)
 
-            P_rpn = model_rpn.predict_on_batch(X)
+            [Y1_rpn_pred, Y2_rpn_pred] = model_rpn.predict_on_batch(X)
             # predictions for all anchor positions&shapes are they valid (<0.3 | >0.7) are overlapping (>0.7)
             # and how to regress to the next closest ground truth bounding box
 
-            R = roi_helpers.rpn_to_roi(P_rpn[0], P_rpn[1], C, K.image_dim_ordering(), use_regr=True, overlap_thresh=0.7,
+            R = roi_helpers.rpn_to_roi(Y1_rpn_pred, Y2_rpn_pred, C, K.image_dim_ordering(), use_regr=True, overlap_thresh=0.7,
                                        max_boxes=300)
             # note: calc_iou converts from (x1,y1,x2,y2) to (x,y,w,h) format
             X2, Y1, Y2 = roi_helpers.calc_iou(R, img_data, C, class_mapping)
+            # X1: image zero centered
+            # X2: ROIs with coordinates
+            # Y1: ROIs with target class
+            # Y2: ROIs with 20 regression values for each point
 
             if X2 is None:
                 # best IoU of each RoI is below threshold C.classifier_min_overlap
@@ -209,7 +215,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 else:
 
                     selected_pos_samples = np.random.choice(pos_samples, C.num_rois // 2, replace=False).tolist()
-                try:  # TODO: `neg_samples` was empty   File "mtrand.pyx", line 1121, in mtrand.RandomState.choice (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
+                try:  # TODO: `neg_samples` was empty File "mtrand.pyx", line 1121, in mtrand.RandomState.choice (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
                     selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                             replace=False).tolist()
                 except:
@@ -227,6 +233,12 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     sel_samples = random.choice(neg_samples)
                 else:
                     sel_samples = random.choice(pos_samples)
+
+            class_color = {(1, 0): (50,50,50), (0, 1): (200, 200, 200)}
+            img = np.copy(X)
+            # for sel in sel_samples:
+            #     helper.draw_annotations(img[0, :, :, :], Y2[0, sel, 20:], X2[0, sel, :], class_color[tuple(Y1[0, sel, :].tolist())])
+            # cv2.imwrite("train.png", img)
 
             loss_class = model_classifier.train_on_batch(
                 x=[X, X2[:, sel_samples, :]],

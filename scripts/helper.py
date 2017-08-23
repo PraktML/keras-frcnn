@@ -1,6 +1,8 @@
 import os, glob
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
     """
@@ -17,14 +19,34 @@ def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
     for idx, folder_content in enumerate(folder_list):
         print("[{}] {}".format(idx, folder_content))
     return str(folder_list[int(input("Enter number: "))])
+
 #
 # def getFramesVRI():
 #     return os.system('ffmpeg -i /data/mlprak1/VehicleReId-Untouched/video_shots/1A.mov /fzi/ids/mlprak1/no_backup/VehicleReId/1A/1A_%06d.png')
 
-def draw_annotations(img, img_data, DATA_FORMAT):
-    img = np.copy(img)
 
+def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT="3d_reg"):
+    img = np.copy(img)
+    # reformat it from zero centered to  3x (0-255)
+    minimum = np.amin(img)
+    maximum = np.amax(img)
+    img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
+    fig, ax = plt.subplots(1)
+    ax.imshow(img)
     if DATA_FORMAT == "3d_reg":
+        coords.reshape((1, 20))
+        if roi_pos is not None:
+            roi_pos = np.array(roi_pos)
+            roi_pos.reshape((1, -1))
+
+            rect = patches.Rectangle((roi_pos[0], roi_pos[1]), roi_pos[2], roi_pos[3]
+                                    # ,linewidth=1, edgecolor='r',facecolor='none'
+                                     )
+            ax.add_patch(rect)
+            # cv2.rectangle(img,
+            #     (int(roi_pos[0]), int(roi_pos[1])),
+            #     (int(roi_pos[0]+roi_pos[2]), int(roi_pos[1]+roi_pos[3])),
+            #     roi_color, 1)
         ################################ STRUCUTRE ########################################################
         # 0"filepath": frame_path_variable,
         # 1"x1": min(x_points),        2"y1": min(y_points),
@@ -68,8 +90,9 @@ def draw_annotations(img, img_data, DATA_FORMAT):
                   (255, 0, 0),  # blue          4
                   (0, 0, 0),  # black           5
                   (0, 255, 0),  # green         6
-                  (255, 0, 255),  # purple      7
+                  (255, 0, 255),  # magenta     7
                   ]
+        c = ['r', 'y', 'w', 'c', 'b', 'k', 'g', 'm']
         #################### MEANING OF THE COLORS/ANNOTATIONS ##########################
         # The cars are always in this angle
         #
@@ -86,14 +109,21 @@ def draw_annotations(img, img_data, DATA_FORMAT):
         #         v   green  ~~~~~~~~~              |   /
         #         v                    ~~~~~~~~~~~~black
         #       (0,y)
-        #
-        for i in range(8):
-            img = cv2.circle(img, (int(entry[5 + i * 2]), int(entry[5 + i * 2 + 1])), 5, color=COLORS[i], thickness=2)
-        cv2.rectangle(img, (int(entry[1]), int(entry[2])),
-                      (int(entry[3]), int(entry[4])), (0, 0, 0), 2)
+        # #
+        # for i in range(8):
+        #     img = cv2.circle(img, (int(entry[5 + i * 2]), int(entry[5 + i * 2 + 1])), 5, color=COLORS[i], thickness=2)
+        # cv2.rectangle(img, (int(entry[1]), int(entry[2])),
+        #               (int(entry[3]), int(entry[4])), (0, 0, 0), 2)
 
+        ax.scatter(coords[4:4+8], coords[4+8:4+8+8], c=c)
+        #for i in range(8):
+        #    img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 5, color=COLORS[i], thickness=2)
+        # cv2.rectangle(img, (int(coords[0]), int(entry[1])),
+        #               (int(entry[2]), int(entry[3])), (0, 0, 0), 2)
+        plt.show()
+        print("shown")
     else:
-        (_, x1, y1, x2, y2, classname) = entry
+        (_, x1, y1, x2, y2, classname) = coords
         if classname == 'front':
             color = (255, 255, 0)
             c = 'c'

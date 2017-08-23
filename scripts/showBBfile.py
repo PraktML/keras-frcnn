@@ -20,7 +20,7 @@ parser.add_option("-p", "--bb_path", dest="bb_path", help="Name of bounding box 
 if options.bb_path:
     bb_file_path = options.bb_file
 else:
-    bb_file_path = scripts.helper.chose_from_folder("../annotations/", "--bb_path")
+    bb_file_path = scripts.helper.chose_from_folder("../annotations/", "*.txt", "--bb_path", )
 bb_file_path = os.path.normpath(bb_file_path)
 bb_file_name = os.path.splitext(os.path.basename(bb_file_path))[0]
 bb_file_folder_path = os.path.join(*(bb_file_path.split(os.path.sep)[:-1]))
@@ -52,10 +52,13 @@ def read_anno_file():
         full_frame_path = scripts.settings.variable_path_to_abs(frame_path)
         frame_name_base = os.path.basename(full_frame_path)
         img = cv2.imread(full_frame_path)
-
+        assert img is not None
         for entry in frame_entries:
 
-            img = scripts.helper.draw_annotations(img, entry, DATA_FORMAT)
+            coords =np.array(
+                [entry[i] for i in list(range(1,5)) + list(range(5,20,2))+list(range(6, 21, 2))]
+            )
+            img = scripts.helper.draw_annotations(img, coords)
 
         out_path = os.path.join(out_folder,frame_name_base)
         print("write to", out_path)

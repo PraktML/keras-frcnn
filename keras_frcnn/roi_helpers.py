@@ -18,7 +18,7 @@ def calc_iou(R, img_data, C, class_mapping):
         Y2 = concat<y_class_regr_label, y_class_regr_coords> shape: (1, num_rois, num_output==20*(2==num_classes-1) * 2)
             for each ROI: the first 20*(2-1) entries are a 20-hot encoding of the class 
                           the last  20*(2-1) entries are the regression values for each of the 20 output values. 
-    """ # TODO: figure what Y1, Y2 really are
+    """ # TODO: figure what Y1, Y2 really are, they are fed in form:
 
     bboxes = img_data['bboxes']
     (width, height) = (img_data['width'], img_data['height'])
@@ -119,8 +119,11 @@ def calc_iou(R, img_data, C, class_mapping):
         if cls_name != 'bg':
             label_pos = 20 * class_num
             sx, sy, sw, sh = C.classifier_regr_std
-            coords[label_pos:20 + label_pos] = [sx * tx, sy * ty, sw * tw, sh * th] + [sw * v for v in acc_3d[:8]] + [
-                sh * v for v in acc_3d[8:]]
+            coords[label_pos:20 + label_pos] = (
+                [sx * tx, sy * ty, sw * tw, sh * th] +  # outer BB regr values
+                [sw * v for v in acc_3d[:8]] +  # all 8 x values
+                [sh * v for v in acc_3d[8:]]  # all 8 y values
+            )
             labels[label_pos:20 + label_pos] = [1] * 20
             y_class_regr_coords.append(copy.deepcopy(coords))
             y_class_regr_label.append(copy.deepcopy(labels))
@@ -216,7 +219,9 @@ def non_max_suppression_fast(boxes, probs, overlap_thresh=0.9, max_boxes=300):
     :param probs: shape (num_anchors * width * height)
     :param overlap_thresh:
     :param max_boxes:
-    :return:
+    :return: [boxes, probabilities] that pass
+             shapes [(num_anchors * img_width * img_height - not, 4), (num_anchors * img_width * img_height - not)]
+
     """
     # code used from here: http://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/
     # if there are no boxes, return an empty list
@@ -300,8 +305,7 @@ def rpn_to_roi(rpn_layer, regr_layer, C, dim_ordering, use_regr=True, max_boxes=
     :param use_regr: use regr_layer to adjust the positions of the fixed grid of the RPN regions
     :param max_boxes: NMS parameter
     :param overlap_thresh: NMS parameter
-    :return: [all_boxes, all_props] after NMS
-                shapes [(num_anchors * img_width * img_height, 4), (num_anchors * img_width * img_height)]
+    :return: all_boxes after NMS shape (num_anchors * img_width * img_height - not passed, 4)
     """
     regr_layer = regr_layer / C.std_scaling
 

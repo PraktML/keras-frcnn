@@ -246,7 +246,6 @@ def classifier(base_layers, input_rois, num_rois, nb_classes=21, trainable=False
     out_class = TimeDistributed(Dense(nb_classes, activation='softmax', kernel_initializer='zero'),
                                 name='dense_class_{}'.format(nb_classes))(out)
 
-
     # note: no regression target for bg class
     # regressing for outer bounding box 2 points, AND for 8 points of the 3D bounding box => 10 (x,y) pairs.
     out_regr = TimeDistributed(Dense(20 * (nb_classes - 1), activation='linear', kernel_initializer='zero'),
