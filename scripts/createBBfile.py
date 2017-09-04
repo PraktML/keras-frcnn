@@ -16,7 +16,7 @@ LIMIT_OUTPUT = 100  # only write the first n entries or "" for no limit
 
 
 NUMBER_FORMAT_VRI = '%06d'
-SUFFIX_VRI = '.bmp'
+SUFFIX_VRI = '.png'
 
 OUTPUT_FILE = "../annotations/"
 OUTPUT_FILE += "bb_3DregCrop.txt"
@@ -104,16 +104,23 @@ with open(OUTPUT_FILE, 'w+') as outfile:
 
                     frame_path_variable = "$VRI_SHOTS_PATH$" + OUTPUT_CUT + shot['name'] + "_" + NUMBER_FORMAT_VRI % (frame + shot['offset']) + SUFFIX_VRI_CUT
                     raw_frame_path = settings.VRI_SHOTS_PATH + shot['name'] + "/" + shot['name'] + "_" + NUMBER_FORMAT_VRI % (frame + shot['offset']) + SUFFIX_VRI
+                    print(raw_frame_path)
 
+                    # Cut relatively from the upper y-coordinate
+                    #helpmin_y = min([y for y in y_points])
+                    #if helpmin_y < VRI_CUT_MIN_Y:
+                    #    VRI_CUT_MIN_Y = helpmin_y
+                    #if helpmax_y > VRI_CUT_MAX_Y:
+                    #    VRI_CUT_MAX_Y = helpmax_y
+                    #cutter = min(helpmin_y - VRI_CUT_BUFFER, VRI_CUT_NO_PIXELS)
+
+                    # Cut a fixed amount of pixes in y-direction
                     helpmin_y = min([y for y in y_points])
-                    helpmax_y = max([y for y in y_points])
-                    if helpmin_y < VRI_CUT_MIN_Y:
-                        VRI_CUT_MIN_Y = helpmin_y
-                    if helpmax_y > VRI_CUT_MAX_Y:
-                        VRI_CUT_MAX_Y = helpmax_y
-
-                    cutter = min(helpmin_y - VRI_CUT_BUFFER, VRI_CUT_NO_PIXELS)
+                    cutter = shot['y_crop']
                     y_points = [y - cutter for y in y_points]
+
+                    if helpmin_y < cutter:
+                        continue
 
                     img = cv2.imread(raw_frame_path)
                     height, width, channels = img.shape
@@ -134,23 +141,23 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                     csvwriter.writerow({"filepath": frame_path_variable,
                                         "x1": min(x_points),        "y1": min(y_points),
                                         "x2": max(x_points),        "y2": max(y_points),
-                                        "top_front_right_x": upperPointShort_x if facing_left else upperPointCorner_x,
-                                        "top_front_right_y": upperPointShort_y - cutter if facing_left else upperPointCorner_y - cutter,
-                                        "top_front_left_x": upperPointCorner_x if facing_left else upperPointShort_x,
-                                        "top_front_left_y": upperPointCorner_y - cutter if facing_left else upperPointShort_y - cutter,
-                                        "top_back_left_x": crossCorner_x if facing_left else upperPointLong_x,
-                                        "top_back_left_y": crossCorner_y - cutter if facing_left else upperPointLong_y  - cutter,
-                                        "top_back_right_x": upperPointLong_x if facing_left else crossCorner_x,
-                                        "top_back_right_y": upperPointLong_y  - cutter if facing_left else crossCorner_y  - cutter,
+                                        "top_front_right_x":    upperPointShort_x if facing_left else upperPointCorner_x,
+                                        "top_front_right_y":    upperPointShort_y - cutter if facing_left else upperPointCorner_y - cutter,
+                                        "top_front_left_x":     upperPointCorner_x if facing_left else upperPointShort_x,
+                                        "top_front_left_y":     upperPointCorner_y - cutter if facing_left else upperPointShort_y - cutter,
+                                        "top_back_left_x":      crossCorner_x if facing_left else upperPointLong_x,
+                                        "top_back_left_y":      crossCorner_y - cutter if facing_left else upperPointLong_y  - cutter,
+                                        "top_back_right_x":     upperPointLong_x if facing_left else crossCorner_x,
+                                        "top_back_right_y":     upperPointLong_y  - cutter if facing_left else crossCorner_y  - cutter,
 
-                                        "bot_front_right_x": shortSide_x if facing_left else corner_x,
-                                        "bot_front_right_y": shortSide_y - cutter if facing_left else corner_y - cutter,
-                                        "bot_front_left_x": corner_x if facing_left else shortSide_x,
-                                        "bot_front_left_y": corner_y - cutter if facing_left else shortSide_y - cutter,
-                                        "bot_back_left_x": lowerCrossCorner_x if facing_left else longSide_x,
-                                        "bot_back_left_y": lowerCrossCorner_y - cutter if facing_left else longSide_y  - cutter,
-                                        "bot_back_right_x": longSide_x if facing_left else lowerCrossCorner_x,
-                                        "bot_back_right_y": longSide_y - cutter if facing_left else lowerCrossCorner_y  - cutter,
+                                        "bot_front_right_x":    shortSide_x if facing_left else corner_x,
+                                        "bot_front_right_y":    shortSide_y - cutter if facing_left else corner_y - cutter,
+                                        "bot_front_left_x":     corner_x if facing_left else shortSide_x,
+                                        "bot_front_left_y":     corner_y - cutter if facing_left else shortSide_y - cutter,
+                                        "bot_back_left_x":      lowerCrossCorner_x if facing_left else longSide_x,
+                                        "bot_back_left_y":      lowerCrossCorner_y - cutter if facing_left else longSide_y  - cutter,
+                                        "bot_back_right_x":     longSide_x if facing_left else lowerCrossCorner_x,
+                                        "bot_back_right_y":     longSide_y - cutter if facing_left else lowerCrossCorner_y  - cutter,
                                         "class_name": "3DBB"
                                         })
 
@@ -243,7 +250,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                            for xy in instance["3DBB"]])
 
         # Make sure we switch front and back in case the car is driving away from the camera
-        to_cam= instance['to_camera']
+        to_cam = instance['to_camera']
         offset = lambda v, towards_camera: (((v + 2) % 4) + ((v // 4) * 4)) if not towards_camera else v
 
         #####################################################################
@@ -252,16 +259,16 @@ with open(OUTPUT_FILE, 'w+') as outfile:
 
         if DATA_FORMAT == "3d_reg":
             csvwriter.writerow({"filepath": frame_path_variable,
-                                "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
-                                "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
-                                "top_front_right_x": points[offset(0, to_cam)][0], "top_front_right_y": points[offset(0, to_cam)][1],
-                                "top_front_left_x": points[offset(1, to_cam)][0], "top_front_left_y": points[offset(1, to_cam)][1],
-                                "top_back_left_x": points[offset(2, to_cam)][0], "top_back_left_y": points[offset(2, to_cam)][1],
-                                "top_back_right_x": points[offset(3, to_cam)][0], "top_back_right_y": points[offset(3, to_cam)][1],
-                                "bot_front_right_x": points[offset(4, to_cam)][0], "bot_front_right_y": points[offset(4, to_cam)][1],
-                                "bot_front_left_x": points[offset(5, to_cam)][0], "bot_front_left_y": points[offset(5, to_cam)][1],
-                                "bot_back_left_x": points[offset(6, to_cam)][0], "bot_back_left_y": points[offset(6, to_cam)][1],
-                                "bot_back_right_x": points[offset(7, to_cam)][0], "bot_back_right_y": points[offset(7, to_cam)][1],
+                                "x1": min([point[0] for point in points]),          "y1": min([point[1] for point in points]),
+                                "x2": max([point[0] for point in points]),          "y2": max([point[1] for point in points]),
+                                "top_front_right_x": points[offset(0, to_cam)][0],  "top_front_right_y": points[offset(0, to_cam)][1],
+                                "top_front_left_x": points[offset(1, to_cam)][0],   "top_front_left_y": points[offset(1, to_cam)][1],
+                                "top_back_left_x": points[offset(2, to_cam)][0],    "top_back_left_y": points[offset(2, to_cam)][1],
+                                "top_back_right_x": points[offset(3, to_cam)][0],   "top_back_right_y": points[offset(3, to_cam)][1],
+                                "bot_front_right_x": points[offset(4, to_cam)][0],  "bot_front_right_y": points[offset(4, to_cam)][1],
+                                "bot_front_left_x": points[offset(5, to_cam)][0],   "bot_front_left_y": points[offset(5, to_cam)][1],
+                                "bot_back_left_x": points[offset(6, to_cam)][0],    "bot_back_left_y": points[offset(6, to_cam)][1],
+                                "bot_back_right_x": points[offset(7, to_cam)][0],   "bot_back_right_y": points[offset(7, to_cam)][1],
                                 "class_name": "3DBB"
                                 })
 
