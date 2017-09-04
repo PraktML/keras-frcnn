@@ -21,7 +21,7 @@ elif os.uname()[1]=="florian-ultra":
 elif os.uname()[1]=="Patrick":
     BOXCARS116K_PATH = "/home/patrick/MLPrakt/Data/BoxCars116k/images/"
     BOXCARS116K_JSON_FILE = "/home/patrick/MLPrakt/Data/BoxCars116k/json_data/dataset.json"
-    VRI_SHOTS_PATH = "/home/patrick/MLPrakt/Data/video_shots/"
+    VRI_SHOTS_PATH = "/home/patrick/MLPrakt/Data/VehicleReId/video_shots/"
 
 else:  # os.uname()[1]=='ids-graham': # at FZI
     BOXCARS116K_PATH = "/disk/ml/datasets/BoxCars116k/data/images/"
