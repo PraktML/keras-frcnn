@@ -7,21 +7,21 @@ import copy
 
 def calc_iou(R, img_data, C, class_mapping):
     """
-    :param R: NMS ROIs shape [(num_anchors*img_width*img_height=num_rois, 4), (num_anchors * img_width * img_height,)]
-    :param img_data: {'bboxes': [{'x1': #, .. 'y2': #, 'bb_x1': #, .. 'bb_y8': #}, {'x1': #, .. 'bb_y8': #} .. ]
-                      'filepath': ..., 'height': ... 'width': ... }
+    :param R: ROIs from RPN prediction [boxes, probs], shape: [(num_rois, 4), (num_rois,)]
+    :param img_data: GT data
+                {'bboxes': [{'x1': #, .. 'y2': #, 'bb_x1': #, .. 'bb_y8': #}, {'x1': #, .. 'bb_y8': #} .. ]
+                'filepath': ..., 'height': ... 'width': ... }
     :param C: config file
     :param class_mapping: {'class1': 0, 'class2': 1, ... 'bg': #, ...}
-    :return: [X, Y1, Y2]
-        X = x_roi + 1Dim, shape: (1, num_rois, 4) foreach roi: [x1, y1, w, h]
+    :return [X2, Y1, Y2]
+        X2 = x_roi + 1Dim, shape: (1, num_rois, 4) foreach roi: [x1, y1, w, h]
         Y1 = y_class_num + 1Dim, shape: (1, num_rois, num_classes) foreach roi: one-hot vector with target class
         Y2 = concat<y_class_regr_label, y_class_regr_coords> shape: (1, num_rois, num_output==20*(2==num_classes-1) * 2)
             for each ROI: the first 20*(2-1) entries are a 20-hot encoding of the class 
                           the last  20*(2-1) entries are the regression values for each of the 20 output values. 
-    """ # TODO: figure what Y1, Y2 really are, they are fed in form:
+    """  # TODO: figure what Y1, Y2 really are
 
-    bboxes = img_data['bboxes']
-    (width, height) = (img_data['width'], img_data['height'])
+    bboxes, width, height = (img_data['bboxes'], img_data['width'], img_data['height'])
     # get image dimensions for resizing
     (resized_width, resized_height) = data_generators.get_new_img_size(width, height, C.im_size)
 
@@ -81,18 +81,22 @@ def calc_iou(R, img_data, C, class_mapping):
             w = x2 - x1
             h = y2 - y1
             x_roi.append([x1, y1, w, h])
+            # x1, y1, w, h all belong to the anchor box
 
             if C.classifier_min_overlap <= best_iou < C.classifier_max_overlap:
                 # hard negative example
                 cls_name = 'bg'
             elif C.classifier_max_overlap <= best_iou:
                 cls_name = bboxes[best_bbox]['class']
+                # center of best ground truth annotated box matching this anchor=ROI
                 cxg = (gta[best_bbox, 0] + gta[best_bbox, 1]) / 2.0
                 cyg = (gta[best_bbox, 2] + gta[best_bbox, 3]) / 2.0
 
+                # center of (predicted) ROI anchor box
                 cx = x1 + w / 2.0
                 cy = y1 + h / 2.0
 
+                # "regression" values for center point and size differences between ROI and GT
                 tx = (cxg - cx) / float(w)
                 ty = (cyg - cy) / float(h)
                 tw = np.log((gta[best_bbox, 1] - gta[best_bbox, 0]) / float(w))
@@ -105,7 +109,7 @@ def calc_iou(R, img_data, C, class_mapping):
                 acc_3d = ([safe_log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w)) for i in range(8)] +
                           [safe_log((gta[best_bbox, 3] - gta[best_bbox, i + 12]) / float(h)) for i in range(8)])
 
-            else:
+            else: # can't happen
                 print('roi = {} should not appear in calc_iou, only good (>.7) or bad (<.3) examples'.format(best_iou))
                 raise RuntimeError
 
@@ -118,7 +122,7 @@ def calc_iou(R, img_data, C, class_mapping):
         labels = [0] * 20 * (len(class_mapping) - 1)
         if cls_name != 'bg':
             label_pos = 20 * class_num
-            sx, sy, sw, sh = C.classifier_regr_std
+            sx, sy, sw, sh = C.classifier_regr_std  # e.g. [8.0, 8.0, 4.0, 4.0]
             coords[label_pos:20 + label_pos] = (
                 [sx * tx, sy * ty, sw * tw, sh * th] +  # outer BB regr values
                 [sw * v for v in acc_3d[:8]] +  # all 8 x values
@@ -134,11 +138,11 @@ def calc_iou(R, img_data, C, class_mapping):
     if len(x_roi) == 0:
         return None, None, None
 
-    X = np.array(x_roi)
+    X2 = np.array(x_roi)
     Y1 = np.array(y_class_num)
     Y2 = np.concatenate([np.array(y_class_regr_label), np.array(y_class_regr_coords)], axis=1)
 
-    return np.expand_dims(X, axis=0), np.expand_dims(Y1, axis=0), np.expand_dims(Y2, axis=0)
+    return np.expand_dims(X2, axis=0), np.expand_dims(Y1, axis=0), np.expand_dims(Y2, axis=0)
 
 
 def safe_log(val):
@@ -296,40 +300,34 @@ import time
 
 def rpn_to_roi(rpn_layer, regr_layer, C, dim_ordering, use_regr=True, max_boxes=300, overlap_thresh=0.9):
     """
-    :param rpn_layer: predictions from the RPN network in the format
+    :param rpn_layer: predictions from the RPN network for classification is obj or is not?
                         concat<y_is_box_valid, y_rpn_overlap>, shape (1, 2*num_anchors, img_width, img_height) if 'tf'
-    :param regr_layer: predictions from the RPN network in format
+    :param regr_layer: predictions from the RPN network for regression to ground truth bounding box
                         concat<4*y_rpn_overlap, y_rpn_regr>, shape (1, 2*4*num_anchors, img_width, img_height) if 'tf'
     :param C: config file
     :param dim_ordering: 'tf' tensorflow or 'th' theano
     :param use_regr: use regr_layer to adjust the positions of the fixed grid of the RPN regions
     :param max_boxes: NMS parameter
     :param overlap_thresh: NMS parameter
-    :return: all_boxes after NMS shape (num_anchors * img_width * img_height - not passed, 4)
+    :return: boxes_sel, probs_sel
+            all boxes that are inside + apply Non Maximum Suppression
+            shapes (num_anchors * img_width * img_height - not passed, <4 for boxes_sel | 1 for probs_sel>)
     """
     regr_layer = regr_layer / C.std_scaling
-
-    anchor_sizes = C.anchor_box_scales
-    anchor_ratios = C.anchor_box_ratios
-
     assert rpn_layer.shape[0] == 1
 
     if dim_ordering == 'th':
         (rows, cols) = rpn_layer.shape[2:]
-
+        A = np.zeros((4, rpn_layer.shape[2], rpn_layer.shape[3], rpn_layer.shape[1]))
     elif dim_ordering == 'tf':
         (rows, cols) = rpn_layer.shape[1:3]
-
-    curr_layer = 0
-    if dim_ordering == 'tf':
         A = np.zeros((4, rpn_layer.shape[1], rpn_layer.shape[2], rpn_layer.shape[3]))
-    elif dim_ordering == 'th':
-        A = np.zeros((4, rpn_layer.shape[2], rpn_layer.shape[3], rpn_layer.shape[1]))
     # A has four times stacked a prediction for each output prediction from the RPN
     # A shape: (4, width, height, 2*num_anchors), these four values are x1, y1, x2, y2 (not width/height)
 
-    for anchor_size in anchor_sizes:  # e.g. [128, 256, 512]
-        for anchor_ratio in anchor_ratios:  # e.g. [[1, 1], [1, 2], [2, 1]]
+    curr_layer = 0
+    for anchor_size in C.anchor_box_scales:  # e.g. [128, 256, 512]
+        for anchor_ratio in C.anchor_box_ratios:  # e.g. [[1, 1], [1, 2], [2, 1]]
 
             # anchor width and height
             anchor_x = (anchor_size * anchor_ratio[0]) / C.rpn_stride  # e.g. (128 * 1) / 16 = 8

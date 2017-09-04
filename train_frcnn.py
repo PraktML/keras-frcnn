@@ -170,22 +170,30 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                           'Check RPN settings or keep training.')
 
             X, Y, img_data = next(data_gen_train)
-            # x_img, [y_rpn_cls=[y_is_box_valid, y_rpn_overlap], y_rpn_regr=[4*y_rpn_overlap, y_rpn_regr]], img_data_aug
-            # shape            (1,38,67,18)
+            # X: x_img, zero centered
+            # Y: [y_rpn_cls=[y_is_box_valid, y_rpn_overlap],
+            #     y_rpn_regr=[4*y_rpn_overlap, y_rpn_regr]],
+            # an anchor position is valid if IoU <0.3 | >0.7 and overlapping if IoU >0.7 with a GT box (values 0 | 1)
+            # the regression values are the the closest object.
+            # img_data: img_data_aug
+            # shape (1,38,67,18)
             loss_rpn = model_rpn.train_on_batch(X, Y)
 
             [Y1_rpn_pred, Y2_rpn_pred] = model_rpn.predict_on_batch(X)
-            # predictions for all anchor positions&shapes are they valid (<0.3 | >0.7) are overlapping (>0.7)
-            # and how to regress to the next closest ground truth bounding box
+            # predictions for all anchor positions&shapes, (if stride>1, ignore the "bottom right" values)
+            #       Y1_rpn_pred: predicted prob this is and is not an object: (1, 2*num_anchors, img_width, img_height)
+            #       Y2_rpn_pred: predicted regression to box edges to closest ground truth bounding box
 
             R = roi_helpers.rpn_to_roi(Y1_rpn_pred, Y2_rpn_pred, C, K.image_dim_ordering(), use_regr=True, overlap_thresh=0.7,
                                        max_boxes=300)
-            # note: calc_iou converts from (x1,y1,x2,y2) to (x,y,w,h) format
+            # R = [boxes, probabilities] that were within the image (some fall out if stride>1)
+            #                            and that NMS allowed to be so close to each other.
+
             X2, Y1, Y2 = roi_helpers.calc_iou(R, img_data, C, class_mapping)
-            # X1: image zero centered
-            # X2: ROIs with coordinates
+            # note: calc_iou converts from (x1,y1,x2,y2) to (x,y,w,h) format
+            # X2: ROIs with coordinates resized(x,y,w,h) * C.classifier_regr_std
             # Y1: ROIs with target class
-            # Y2: ROIs with 20 regression values for each point
+            # Y2: ROIs with 20 regression values for each point resized(center point) * C.classifier_regr_std)
 
             if X2 is None:
                 # best IoU of each RoI is below threshold C.classifier_min_overlap
@@ -234,10 +242,11 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 else:
                     sel_samples = random.choice(pos_samples)
 
-            class_color = {(1, 0): (50,50,50), (0, 1): (200, 200, 200)}
+            class_color = {(1, 0): (50, 50, 50), (0, 1): (200, 200, 200)}
             img = np.copy(X)
             # for sel in sel_samples:
-            #     helper.draw_annotations(img[0, :, :, :], Y2[0, sel, 20:], X2[0, sel, :], class_color[tuple(Y1[0, sel, :].tolist())])
+            #     helper.draw_annotations(img[0, :, :, :], Y2[0, sel, 20:], X2[0, sel, :],
+            #                             class_color[tuple(Y1[0, sel, :].tolist())])
             # cv2.imwrite("train.png", img)
 
             loss_class = model_classifier.train_on_batch(

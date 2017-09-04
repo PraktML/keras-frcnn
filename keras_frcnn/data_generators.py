@@ -266,11 +266,13 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
                 best_anchor_for_bbox[idx, 1],
                 best_anchor_for_bbox[idx, 2] + n_anchratios * best_anchor_for_bbox[idx, 3]
             ] = 1
+
             y_rpn_overlap[
                 best_anchor_for_bbox[idx, 0],
                 best_anchor_for_bbox[idx, 1],
                 best_anchor_for_bbox[idx, 2] + n_anchratios * best_anchor_for_bbox[idx, 3]
             ] = 1
+
             start = 4 * (best_anchor_for_bbox[idx, 2] + n_anchratios * best_anchor_for_bbox[idx, 3])
             y_rpn_regr[
             best_anchor_for_bbox[idx, 0],
