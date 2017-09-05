@@ -28,11 +28,12 @@ def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
 def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT="3d_reg"):
     img = np.copy(img)
     # reformat it from zero centered to  3x (0-255)
-    minimum = np.amin(img)
-    maximum = np.amax(img)
-    img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
+    #minimum = np.amin(img)
+    #maximum = np.amax(img)
+    #img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
     fig, ax = plt.subplots(1)
     ax.imshow(img)
+
     if DATA_FORMAT == "3d_reg":
         coords.reshape((1, 20))
         if roi_pos is not None:
@@ -116,12 +117,15 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         #               (int(entry[3]), int(entry[4])), (0, 0, 0), 2)
 
         ax.scatter(coords[4:4+8], coords[4+8:4+8+8], c=c)
-        #for i in range(8):
-        #    img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 5, color=COLORS[i], thickness=2)
-        # cv2.rectangle(img, (int(coords[0]), int(entry[1])),
-        #               (int(entry[2]), int(entry[3])), (0, 0, 0), 2)
-        plt.show()
-        print("shown")
+        for i in range(8):
+            img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 5, color=COLORS[i], thickness=2)
+            #cv2.rectangle(img, (int(coords[0]), int(entry[1])),
+            #           (int(entry[2]), int(entry[3])), (0, 0, 0), 2)
+
+        #plt.show(block=False)
+        #keep = input("keep t/f")
+        #print("shown")
+        #plt.close()
     else:
         (_, x1, y1, x2, y2, classname) = coords
         if classname == 'front':
@@ -142,7 +146,7 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
 
         img = cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), color=color, thickness=5)
 
-
+        keep = None
         #################### MEANING OF THE COLORS/ANNOTATIONS ##########################
         # The cars are always in this angle
         #
@@ -165,4 +169,18 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         #    SIDEBB:  four points marked "S"
         #    OUTERBB: four points marked "O"
 
-    return img
+    plt.draw()
+    result = {'keep': True}
+    def press(event):
+        #print(event.key)
+        if event.key == 'd':
+            result['keep'] = False
+    fig.canvas.mpl_connect('key_press_event', press)
+    plt.waitforbuttonpress(0)
+    plt.close()
+    #print("worked", result['keep'])
+    return img, result['keep']
+
+def press(event):
+    print("keystroke", event.key)
+
