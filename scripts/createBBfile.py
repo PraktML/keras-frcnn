@@ -12,14 +12,14 @@ The absolute Paths are replaced with relative variables
 """
 
 DATA_FORMAT = "3d_reg" # in ["3d_reg", "merge_areas"]
-LIMIT_OUTPUT = 100  # only write the first n entries or "" for no limit
+LIMIT_OUTPUT = ""  # only write the first n entries or "" for no limit
 
 
 NUMBER_FORMAT_VRI = '%06d'
-SUFFIX_VRI = '.png'
+SUFFIX_VRI = '.bmp'
 
 OUTPUT_FILE = "../annotations/"
-OUTPUT_FILE += "bb_3DregCrop.txt"
+OUTPUT_FILE += "bb_3DregCrop_all.txt"
 OUTPUT_CUT = "cropped/"
 
 # shall the VRI images be cropped?
@@ -36,10 +36,10 @@ VRI_CUT_BUFFER = 20 # buffer between highest y-coordinate in the picture and the
 with open(OUTPUT_FILE, 'w+') as outfile:
     fieldnames_area_merging = ["filepath", "x1", "y1", "x2", "y2", "class_name"]
     fieldnames_3d_reg = ["filepath", "x1", "y1", "x2", "y2",
-                         "top_front_right_x", "top_front_right_y", "top_front_left_x", "top_front_left_y",
-                         "top_back_left_x", "top_back_left_y", "top_back_right_x", "top_back_right_y",
-                         "bot_front_right_x", "bot_front_right_y", "bot_front_left_x", "bot_front_left_y",
-                         "bot_back_left_x", "bot_back_left_y", "bot_back_right_x", "bot_back_right_y",
+                         "top_front_outer_x", "top_front_outer_y", "top_front_inner_x", "top_front_inner_y",
+                         "top_back_inner_x", "top_back_inner_y", "top_back_outer_x", "top_back_outer_y",
+                         "bot_front_outer_x", "bot_front_outer_y", "bot_front_inner_x", "bot_front_inner_y",
+                         "bot_back_inner_x", "bot_back_inner_y", "bot_back_outer_x", "bot_back_outer_y",
                          "class_name"
                          ]
     csvwriter = csv.DictWriter(outfile, delimiter=',', lineterminator='\n',
@@ -137,67 +137,70 @@ with open(OUTPUT_FILE, 'w+') as outfile:
 
                 if DATA_FORMAT == "3d_reg":
 
-                    facing_left = upperPointShort_x > upperPointCorner_x
+                    #facing_left = upperPointShort_x > upperPointCorner_x
+                    # this means that   **
+                    #                     **
+                    #                       **    car is shaped like this (regardless if it is coming towards us or not
+
                     csvwriter.writerow({"filepath": frame_path_variable,
                                         "x1": min(x_points),        "y1": min(y_points),
                                         "x2": max(x_points),        "y2": max(y_points),
-                                        "top_front_right_x":    upperPointShort_x if facing_left else upperPointCorner_x,
-                                        "top_front_right_y":    upperPointShort_y - cutter if facing_left else upperPointCorner_y - cutter,
-                                        "top_front_left_x":     upperPointCorner_x if facing_left else upperPointShort_x,
-                                        "top_front_left_y":     upperPointCorner_y - cutter if facing_left else upperPointShort_y - cutter,
-                                        "top_back_left_x":      crossCorner_x if facing_left else upperPointLong_x,
-                                        "top_back_left_y":      crossCorner_y - cutter if facing_left else upperPointLong_y  - cutter,
-                                        "top_back_right_x":     upperPointLong_x if facing_left else crossCorner_x,
-                                        "top_back_right_y":     upperPointLong_y  - cutter if facing_left else crossCorner_y  - cutter,
+                                        "top_front_outer_x":     upperPointShort_x,# if facing_left else upperPointCorner_x,
+                                        "top_front_outer_y":     upperPointShort_y - cutter, # if facing_left else upperPointCorner_y - cutter,
+                                        "top_front_inner_x":     upperPointCorner_x, # if facing_left else upperPointShort_x,
+                                        "top_front_inner_y":     upperPointCorner_y - cutter, # if facing_left else upperPointShort_y - cutter,
+                                        "top_back_inner_x":      upperPointLong_x, # if facing_left else crossCorner_x,
+                                        "top_back_inner_y":      upperPointLong_y - cutter, # if facing_left else crossCorner_y - cutter,
+                                        "top_back_outer_x":      crossCorner_x, # if facing_left else upperPointLong_x,
+                                        "top_back_outer_y":      crossCorner_y - cutter, # if facing_left else upperPointLong_y  - cutter,
 
-                                        "bot_front_right_x":    shortSide_x if facing_left else corner_x,
-                                        "bot_front_right_y":    shortSide_y - cutter if facing_left else corner_y - cutter,
-                                        "bot_front_left_x":     corner_x if facing_left else shortSide_x,
-                                        "bot_front_left_y":     corner_y - cutter if facing_left else shortSide_y - cutter,
-                                        "bot_back_left_x":      lowerCrossCorner_x if facing_left else longSide_x,
-                                        "bot_back_left_y":      lowerCrossCorner_y - cutter if facing_left else longSide_y  - cutter,
-                                        "bot_back_right_x":     longSide_x if facing_left else lowerCrossCorner_x,
-                                        "bot_back_right_y":     longSide_y - cutter if facing_left else lowerCrossCorner_y  - cutter,
-                                        "class_name": "3DBB"
+                                        "bot_front_outer_x":     shortSide_x, # if facing_left else corner_x,
+                                        "bot_front_outer_y":     shortSide_y - cutter, # if facing_left else corner_y - cutter,
+                                        "bot_front_inner_x":     corner_x, # if facing_left else shortSide_x,
+                                        "bot_front_inner_y":     corner_y - cutter, # if facing_left else shortSide_y - cutter,
+                                        "bot_back_inner_x":      longSide_x, #  if facing_left else lowerCrossCorner_x,
+                                        "bot_back_inner_y":      longSide_y - cutter, # if facing_left else lowerCrossCorner_y  - cutter,
+                                        "bot_back_outer_x":      lowerCrossCorner_x, # if facing_left else longSide_x,
+                                        "bot_back_outer_y":      lowerCrossCorner_y - cutter, # if facing_left else longSide_y  - cutter,
+                                        "class_name": "Front" if shot["sep_m"] * corner_x + shot["sep_y"] < corner_y else "Back"
                                         })
 
                 #####################################################################
                 ################   CREATING DATA MERGE AREAS     ####################
                 #####################################################################
 
-
-                else:
+                else:  # format 'merge_areas'
                     # outer boundingbox: top left and bottom right corner
                     # (green_x, cyan_y) - (red_x, black_y)
                     csvwriter.writerow({
                         "filepath": frame_path_variable,
-                        "x1": longSide_x,        "y1": crossCorner_y,
-                        "x2": upperPointShort_x, "y2": corner_y,
-                        "class_name": "outer"
+                        "x1": longSide_x,        "y1": crossCorner_y - cutter,
+                        "x2": upperPointShort_x, "y2": corner_y- cutter,
+                        "class_name": "Outer"
                                       })
                     # facing boundingbox: described by red and black, on the left side of the picture they are facing us "frontBB" on the right "backBB"
                     # (black_x, red_y) - (red_x, black_y)
                     csvwriter.writerow({
                         "filepath": frame_path_variable,
-                        "x1": corner_x,        "y1": upperPointShort_y,
-                        "x2": upperPointShort_x, "y2": corner_y,
-                        "class_name": "front" if shot["sep_m"] * corner_x + shot["sep_y"] < corner_y else "back"
+                        "x1": corner_x,        "y1": upperPointShort_y- cutter,
+                        "x2": upperPointShort_x, "y2": corner_y- cutter,
+                        "class_name": "Front" if shot["sep_m"] * corner_x + shot["sep_y"] < corner_y else "Back"
                     })
                     # (facing) side boundingbox: described by white and black
                     # (white_x, white_y) - (black_x, black_y)
                     csvwriter.writerow({
                         "filepath": frame_path_variable,
-                        "x1": upperPointLong_x, "y1": upperPointLong_y,
-                        "x2": corner_x, "y2": corner_y,
-                        "class_name": "side"
+                        "x1": upperPointLong_x, "y1": upperPointLong_y - cutter,
+                        "x2": corner_x, "y2": corner_y- cutter,
+                        "class_name": "Side"
                     })
                     # (top) side boundingbox: described by white and black
                     # (white_x, cyan_y) - (red_x, yellow_y)
                     csvwriter.writerow({
                         "filepath": frame_path_variable,
-                        "x1": upperPointLong_x, "y1": crossCorner_y,
-                        "x2": upperPointShort_x, "y2": upperPointCorner_y,
-                        "class_name": "top"
+                        "x1": upperPointLong_x, "y1": crossCorner_y- cutter,
+                        "x2": upperPointShort_x, "y2": upperPointCorner_y- cutter,
+                        "class_name": "Top"
                     })
 
             # end for loop iterating over VRI
@@ -251,7 +254,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
 
         # Make sure we switch front and back in case the car is driving away from the camera
         to_cam = instance['to_camera']
-        offset = lambda v, towards_camera: (((v + 2) % 4) + ((v // 4) * 4)) if not towards_camera else v
+        # offset = lambda v, towards_camera: (((v + 2) % 4) + ((v // 4) * 4)) if not towards_camera else v
 
         #####################################################################
         ################   CREATING DATA FORMAT 3D-REG   ####################
@@ -261,23 +264,32 @@ with open(OUTPUT_FILE, 'w+') as outfile:
             csvwriter.writerow({"filepath": frame_path_variable,
                                 "x1": min([point[0] for point in points]),          "y1": min([point[1] for point in points]),
                                 "x2": max([point[0] for point in points]),          "y2": max([point[1] for point in points]),
-                                "top_front_right_x": points[offset(0, to_cam)][0],  "top_front_right_y": points[offset(0, to_cam)][1],
-                                "top_front_left_x": points[offset(1, to_cam)][0],   "top_front_left_y": points[offset(1, to_cam)][1],
-                                "top_back_left_x": points[offset(2, to_cam)][0],    "top_back_left_y": points[offset(2, to_cam)][1],
-                                "top_back_right_x": points[offset(3, to_cam)][0],   "top_back_right_y": points[offset(3, to_cam)][1],
-                                "bot_front_right_x": points[offset(4, to_cam)][0],  "bot_front_right_y": points[offset(4, to_cam)][1],
-                                "bot_front_left_x": points[offset(5, to_cam)][0],   "bot_front_left_y": points[offset(5, to_cam)][1],
-                                "bot_back_left_x": points[offset(6, to_cam)][0],    "bot_back_left_y": points[offset(6, to_cam)][1],
-                                "bot_back_right_x": points[offset(7, to_cam)][0],   "bot_back_right_y": points[offset(7, to_cam)][1],
-                                "class_name": "3DBB"
+                                "top_front_outer_x": points[0][0],  "top_front_outer_y": points[0][1],
+                                "top_front_inner_x": points[1][0],   "top_front_inner_y": points[1][1],
+                                "top_back_inner_x": points[2][0],    "top_back_inner_y": points[2][1],
+                                "top_back_outer_x": points[3][0],   "top_back_outer_y": points[3][1],
+                                "bot_front_outer_x": points[4][0],  "bot_front_outer_y": points[4][1],
+                                "bot_front_inner_x": points[5][0],   "bot_front_inner_y": points[5][1],
+                                "bot_back_inner_x": points[6][0],    "bot_back_inner_y": points[6][1],
+                                "bot_back_outer_x": points[7][0],   "bot_back_outer_y": points[7][1],
+
+
+                                # "top_front_outer_x": points[offset(0, to_cam)][0],  "top_front_outer_y": points[offset(0, to_cam)][1],
+                                # "top_front_inner_x": points[offset(1, to_cam)][0],   "top_front_inner_y": points[offset(1, to_cam)][1],
+                                # "top_back_inner_x": points[offset(2, to_cam)][0],    "top_back_inner_y": points[offset(2, to_cam)][1],
+                                # "top_back_outer_x": points[offset(3, to_cam)][0],   "top_back_outer_y": points[offset(3, to_cam)][1],
+                                # "bot_front_outer_x": points[offset(4, to_cam)][0],  "bot_front_outer_y": points[offset(4, to_cam)][1],
+                                # "bot_front_inner_x": points[offset(5, to_cam)][0],   "bot_front_inner_y": points[offset(5, to_cam)][1],
+                                # "bot_back_inner_x": points[offset(6, to_cam)][0],    "bot_back_inner_y": points[offset(6, to_cam)][1],
+                                # "bot_back_outer_x": points[offset(7, to_cam)][0],   "bot_back_outer_y": points[offset(7, to_cam)][1],
+                                "class_name": "Front" if to_cam else "Back"
                                 })
 
             #####################################################################
             ############## CREATING DATA FORMAT MERGE AREAS  ####################
             #####################################################################
 
-
-        else:
+        else: # format 'merge_areas'
             points_facing = points[[0,1,4,5], :]
             points_side = points[[1,2,5,6], :]
             points_top = points[[0,1,2,3], :]
@@ -285,7 +297,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 "filepath": frame_path_variable,
                 "x1": min([point[0] for point in points]),        "y1": min([point[1] for point in points]),
                 "x2": max([point[0] for point in points]),        "y2": max([point[1] for point in points]),
-                "class_name": "outer"
+                "class_name": "Outer"
             })
             # facing boundingbox: described by red and black, on the left side of the picture they are facing us "frontBB" on the right "backBB"
             # (black_x, red_y) - (red_x, black_y)
@@ -293,7 +305,7 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 "filepath": frame_path_variable,
                 "x1": min([point[0] for point in points_facing]),        "y1": min([point[1] for point in points_facing]),
                 "x2": max([point[0] for point in points_facing]),        "y2": max([point[1] for point in points_facing]),
-                "class_name": "front" if instance["to_camera"] else "back"
+                "class_name": "Front" if instance["to_camera"] else "Back"
             })
             # (facing) side boundingbox: described by white and black
             # (white_x, white_y) - (black_x, black_y)
@@ -301,14 +313,14 @@ with open(OUTPUT_FILE, 'w+') as outfile:
                 "filepath": frame_path_variable,
                 "x1": min([point[0] for point in points_side]),        "y1": min([point[1] for point in points_side]),
                 "x2": max([point[0] for point in points_side]),        "y2": max([point[1] for point in points_side]),
-                "class_name": "side"
+                "class_name": "Side"
             })
             # (top) side boundingbox: described by
             csvwriter.writerow({
                 "filepath": frame_path_variable,
                 "x1": min([point[0] for point in points_top]),        "y1": min([point[1] for point in points_top]),
                 "x2": max([point[0] for point in points_top]),        "y2": max([point[1] for point in points_top]),
-                "class_name": "top"
+                "class_name": "Top"
             })
         #end if
     # end loop iterating over all instances of cars.

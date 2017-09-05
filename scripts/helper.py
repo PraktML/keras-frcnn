@@ -25,14 +25,14 @@ def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
 #     return os.system('ffmpeg -i /data/mlprak1/VehicleReId-Untouched/video_shots/1A.mov /fzi/ids/mlprak1/no_backup/VehicleReId/1A/1A_%06d.png')
 
 
-def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT="3d_reg"):
+def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT="3d_reg", fac="n/a"):
     img = np.copy(img)
     # reformat it from zero centered to  3x (0-255)
     #minimum = np.amin(img)
     #maximum = np.amax(img)
     #img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
-    fig, ax = plt.subplots(1)
-    ax.imshow(img)
+    #fig, ax = plt.subplots(1)
+    #ax.imshow(img)
 
     if DATA_FORMAT == "3d_reg":
         coords.reshape((1, 20))
@@ -40,10 +40,10 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
             roi_pos = np.array(roi_pos)
             roi_pos.reshape((1, -1))
 
-            rect = patches.Rectangle((roi_pos[0], roi_pos[1]), roi_pos[2], roi_pos[3]
-                                    # ,linewidth=1, edgecolor='r',facecolor='none'
-                                     )
-            ax.add_patch(rect)
+            #rect = patches.Rectangle((roi_pos[0], roi_pos[1]), roi_pos[2], roi_pos[3]
+             #                       # ,linewidth=1, edgecolor='r',facecolor='none'
+             #                        )
+            #ax.add_patch(rect)
             # cv2.rectangle(img,
             #     (int(roi_pos[0]), int(roi_pos[1])),
             #     (int(roi_pos[0]+roi_pos[2]), int(roi_pos[1]+roi_pos[3])),
@@ -104,8 +104,8 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         #         v   white  ~~~~~~~~~~               /  |
         #         v     |              ~~~~~~~~~~ yellow |
         #         v     |                           |    |
-        #         v     |                           |    |
-        #         v     |  purple                   |    |
+        #         v     |                           |  f |
+        #         v     |  purple                   |  r |
         #         v     | /                         |   blue
         #         v   green  ~~~~~~~~~              |   /
         #         v                    ~~~~~~~~~~~~black
@@ -116,11 +116,17 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         # cv2.rectangle(img, (int(entry[1]), int(entry[2])),
         #               (int(entry[3]), int(entry[4])), (0, 0, 0), 2)
 
-        ax.scatter(coords[4:4+8], coords[4+8:4+8+8], c=c)
+        #ax.scatter(coords[4:4+8], coords[4+8:4+8+8], c=c)
         for i in range(8):
-            img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 5, color=COLORS[i], thickness=2)
-            #cv2.rectangle(img, (int(coords[0]), int(entry[1])),
-            #           (int(entry[2]), int(entry[3])), (0, 0, 0), 2)
+            img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 10, color=COLORS[i], thickness=9)
+            img = cv2.putText(img, str(i), (int(coords[4 + i]), int(coords[4 + 8 + i])), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,0,0), 4)
+        img = cv2.line(img, (int(coords[5]), int(coords[5+8])), (int(coords[8]), int(coords[8+8])), (255, 255, 255), thickness=5)
+        img = cv2.line(img, (int(coords[4]), int(coords[4 + 8])), (int(coords[9]), int(coords[9 + 8])), (255, 255, 255), thickness=5)
+
+        img = cv2.putText(img, fac, (int(coords[0]), int(coords[1])-50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 23, 23), 4)
+        # print(fac)
+        # cv2.rectangle(img, (int(coords[0]), int(coords[1])),
+        #            (int(coords[2]), int(coords[3])), (0, 0, 0), 2)
 
         #plt.show(block=False)
         #keep = input("keep t/f")
@@ -168,18 +174,18 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         #    FRONTBB: four point marked "F"
         #    SIDEBB:  four points marked "S"
         #    OUTERBB: four points marked "O"
-
-    plt.draw()
-    result = {'keep': True}
-    def press(event):
-        #print(event.key)
-        if event.key == 'd':
-            result['keep'] = False
-    fig.canvas.mpl_connect('key_press_event', press)
-    plt.waitforbuttonpress(0)
-    plt.close()
+    #
+    # plt.draw()
+    # result = {'keep': True}
+    # def press(event):
+    #     #print(event.key)
+    #     if event.key == 'd':
+    #         result['keep'] = False
+    # fig.canvas.mpl_connect('key_press_event', press)
+    # plt.waitforbuttonpress(0)
+    # plt.close()
     #print("worked", result['keep'])
-    return img, result['keep']
+    return img#, result['keep']
 
 def press(event):
     print("keystroke", event.key)

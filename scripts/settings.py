@@ -30,17 +30,17 @@ else:  # os.uname()[1]=='ids-graham': # at FZI
 
 FRAMES_VRI = [
     {"name": "1A", "frames": [1862, 2496, 3016],
-     "offset": 0,  "sep_y": 0, "sep_m": 0.43, "from":0, "to": 20000, "y_crop": 200},
+     "offset": 0,  "sep_y": 0, "sep_m": 0.43, "from":0, "to": 20000, "y_crop": 180},
     {"name": "1B", "frames": [1800, 7402, 10300],
-     "offset": -2, "sep_y": 10, "sep_m": 0.22, "from":0, "to": 20000, "y_crop": 200},
+     "offset": -2, "sep_y": 10, "sep_m": 0.22, "from":0, "to": 20000, "y_crop": 80},
     {"name": "2A", "frames": [1800, 7402, 12278, 12240, 12030],
-     "offset": 0, "sep_y": -20, "sep_m": 0.50, "from":0, "to": 20000, "y_crop": 200},
+     "offset": 0, "sep_y": -20, "sep_m": 0.50, "from":0, "to": 20000, "y_crop": 100},
     {"name": "2B", "frames": [1862, 4390, 9270, 9476, 9910],
-     "offset": -2, "sep_y": -10, "sep_m": 0.38, "from":0, "to": 20000, "y_crop": 200},
+     "offset": -2, "sep_y": -10, "sep_m": 0.38, "from":0, "to": 20000, "y_crop": 80},
     {"name": "3A", "frames": [1862, 922, 4896, 9388],
-     "offset": 0, "sep_y": -65, "sep_m": 0.67, "from":0, "to": 20000, "y_crop": 200},
+     "offset": 0, "sep_y": -65, "sep_m": 0.67, "from":0, "to": 20000, "y_crop": 0},
     {"name": "3B", "frames": [1862, 922, 4896],
-     "offset": -2, "sep_y": -10, "sep_m": 0.4, "from":0, "to": 8000, "y_crop": 200},  # dieser offset stimmt ned
+     "offset": -2, "sep_y": -10, "sep_m": 0.4, "from":0, "to": 8000, "y_crop": 40},  # dieser offset stimmt ned
     # {"name": "4A", "frames": [806, 4390,8410, 8800,],
     #  "offset": +1, "sep_y": -100, "sep_m": 0.65 , "from":0, "to": 8000},
     # {"name": "4B", "frames": [806, 4390, 7934, 8166],

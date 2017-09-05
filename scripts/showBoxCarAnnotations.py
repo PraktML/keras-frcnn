@@ -5,8 +5,11 @@ import numpy as np
 import shutil
 import os
 import cv2
+import matplotlib.pyplot as plt
 #SHOTS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B"]
+
 OUT_FOLDER = scripts.settings.BOXCARS116K_PATH + "visualize/"
+OUT_FOLDER = "viz/"
 if os.path.exists(OUT_FOLDER):
     shutil.rmtree(OUT_FOLDER)
     os.makedirs(OUT_FOLDER)
@@ -58,6 +61,10 @@ for sample in samples:
 
                 img = cv2.circle(img, (int(point[0])-int(sample[2][0]), int(point[1])-int(sample[2][1])), 5, COLORS[i],
                                  thickness=2)
+                img = cv2.putText(img, str(i), (int(point[0])-int(sample[2][0]), int(point[1])-int(sample[2][1])),
+                                  cv2.FONT_HERSHEY_SIMPLEX,
+                                  1.5, (0, 0, 0), 4)
+
 
 
                 #################### MEANING OF THE COLORS/ANNOTATIONS ##########################
@@ -87,5 +94,6 @@ for sample in samples:
                 os.makedirs(out_path[:out_path.rfind("/")])
 
             cv2.imwrite(out_path, img)
-
+            fig, ax = plt.subplots(1)
+            ax.imshow(img)
 
