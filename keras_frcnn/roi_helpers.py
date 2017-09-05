@@ -155,9 +155,17 @@ def safe_log(val):
 
 
 def apply_regr(x, y, w, h, tx, ty, tw, th, bb3d):
+    """ 
+    used to get from selected ROI center to the desired points of the 3D box
+    x, y, w, h belong to ROI
+    tx, ty, tw, th, bb3d are "regression values" to the actual position
+    """
     try:
+        # center of ROI (2D)
         cx = x + w / 2.
         cy = y + h / 2.
+
+        # apply regression
         cx1 = tx * w + cx
         cy1 = ty * h + cy
         w1 = math.exp(tw) * w
@@ -185,6 +193,7 @@ def apply_regr(x, y, w, h, tx, ty, tw, th, bb3d):
 
 
 def apply_regr_np(X, T):
+    """ used for regression in ROI finding with output from RPN network"""
     try:
         x = X[0, :, :]
         y = X[1, :, :]
