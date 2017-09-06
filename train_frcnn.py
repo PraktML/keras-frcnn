@@ -234,8 +234,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             rpn_accuracy_rpn_monitor.append(len(pos_samples))
             rpn_accuracy_for_epoch.append((len(pos_samples)))
 
-            # TODO: figure out, what is a good number of ROIs to be looked at at the same time,
-            # TODO: standard value was 32, but could also be 4?
             # We have to feed in num_rois samples (of ROIs), ideally half of them should be positive and half negative.
             if C.num_rois > 1:
                 if len(pos_samples) < C.num_rois // 2:
@@ -258,9 +256,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                         selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                                 replace=True).tolist()
                     except:
-                        # TODO: `neg_samples` was empty
-                        # TODO: File "mtrand.pyx", line 1121, in mtrand.RandomState.choice
-                        # TODO: (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
                         # this means there are no negative samples at all in this picture, if this case passes through
                         # the net will throw an error as the input won't have num_rois samples to work with.
                         selected_neg_samples = []
@@ -293,19 +288,11 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
 
             class_color = {(1, 0): (50, 50, 50), (0, 1): (200, 200, 200)}
             img = np.copy(X)
-            # for sel in sel_samples:
-            #     helper.draw_annotations(img[0, :, :, :], Y2[0, sel, 20:], X2[0, sel, :],
-            #                             class_color[tuple(Y1[0, sel, :].tolist())])
-            # cv2.imwrite("train.png", img)
 
             loss_class = model_classifier.train_on_batch(
                 x=[X, X2[:, sel_samples, :]],
                 y=[Y1[:, sel_samples, :], Y2[:, sel_samples, :]]
             )
-            # TODO: got error here on 'y=' input:
-            # TODO: alueError: Error when checking model input: expected input_2 to have shape (None, 32, 4)
-            # TODO: but got array with shape (1, 2, 4)
-            # --> not enough samples selected???
 
             losses[iter_num, 0] = loss_rpn[1]
             losses[iter_num, 1] = loss_rpn[2]
@@ -339,14 +326,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
 
                 mean_overlapping_bboxes = float(sum(rpn_accuracy_for_epoch)) / len(rpn_accuracy_for_epoch)
                 rpn_accuracy_for_epoch = []
-
-                # for X, Y, img_data in data_gen_val:
-                #
-                #     outs = test_helper.test_picture(X, C, model_rpn=model_rpn, model_classifier_only=model_classifier,
-                #                              visual_output=False, class_mapping=class_mapping)
-                #     print ("got:", outs)
-                #     print ("target:", Y)
-                #     break
 
                 elapsed_time = time.time() - start_time
 
@@ -428,8 +407,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             print(tr)
             continue
 
-    # with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
-    #    epoch_f.write(epoch_num)
     C.current_epoch = epoch_num + 1
     config_output_filename = C.output_folder + C.config_filename
     with open(config_output_filename, 'wb') as config_f:

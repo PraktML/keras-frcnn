@@ -153,7 +153,6 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
         gta[bbox_num, 1] = bbox['x2'] * (resized_width / float(width))
         gta[bbox_num, 2] = bbox['y1'] * (resized_height / float(height))
         gta[bbox_num, 3] = bbox['y2'] * (resized_height / float(height))
-        # TODO: also resize the 8 bounding box values, not really necessary as the anchors stay 2D
 
     # rpn ground truth
     for anchor_size_idx in range(len(anchor_sizes)):  # e.g. [128, 256, 512]
@@ -165,7 +164,6 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
             # run over picture and test anchor box on all positions
             # the downscale parameter is the RPN stride size and can be chosen in the config (e.g. 16)
             # ix would only have to go to output_width if downscale==1, otherwise they are skipped below.
-            # TODO: rename downscale to rpn_stride
             for ix in range(output_width):
                 # x-coordinates of the current anchor box
                 x1_anc = downscale * (ix + 0.5) - anchor_x / 2
@@ -308,7 +306,6 @@ def calc_rpn(C, img_data, width, height, resized_width, resized_height):
         val_locs = random.sample(range(len(neg_locs[0])), len(neg_locs[0]) - num_pos)
         y_is_box_valid[0, neg_locs[0][val_locs], neg_locs[1][val_locs], neg_locs[2][val_locs]] = 0  # these are not used
 
-    # TODO: it is really weird that they insert a new dimension and then don't use it.
     y_rpn_cls = np.concatenate([y_is_box_valid, y_rpn_overlap], axis=1)
     y_rpn_regr = np.concatenate([np.repeat(y_rpn_overlap, 4, axis=1), y_rpn_regr], axis=1)
 
