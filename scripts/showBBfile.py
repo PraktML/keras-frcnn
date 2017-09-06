@@ -8,14 +8,16 @@ from optparse import OptionParser
 import scripts.helper
 import scripts.settings
 import matplotlib.pyplot as plt
-FRAME_PATHS = [] # these paths are tested, additionally to some random ones, specifed by Random_samples
-RANDOM_SAMPLES = -1 # set it to -1 to take all
-DATA_FORMAT = "3d_reg" # in ["3d_reg", "merge_areas"]
+
+FRAME_PATHS = []  # these paths are tested, additionally to some random ones, specifed by Random_samples
+RANDOM_SAMPLES = -1  # set it to -1 to take all
+DATA_FORMAT = "3d_reg"  # in ["3d_reg", "merge_areas"]
 
 
 parser = OptionParser()
 
-parser.add_option("-p", "--bb_path", dest="bb_path", help="Name of bounding box file that shall be graphically displayed")
+parser.add_option("-p", "--bb_path", dest="bb_path",
+                  help="Name of bounding box file that shall be graphically displayed")
 parser.add_option("-o", "--out_file", dest="out_file", default="../annotations/bb_sel.txt")
 
 (options, args) = parser.parse_args()
@@ -38,16 +40,18 @@ if os.path.exists(out_folder):
     shutil.rmtree(out_folder)
     os.makedirs(out_folder)
 
+
 def remove_duplicates_sorted(seq):
     seen = set()
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
 
+
 def read_anno_file():
     with open(bb_file_path) as file:
         print("Reading in the whole annotation file", bb_file_path, "as ")
         entries = list(csv.reader(file, delimiter=','))
-        entries = sorted(entries, key=lambda entry: entry[0])
+        entries = sorted(entries, key=lambda e: e[0])
         sorted_file = bb_file_path+"_sort.txt"
     with open(sorted_file, "w+") as file:
         print("writing sorted file to", sorted_file)
@@ -66,7 +70,8 @@ def read_anno_file():
         sorted_frame_paths = remove_duplicates_sorted(FRAME_PATHS)
         for frame_path in sorted_frame_paths:
 
-            print("analyze", frame_path) #we only have one frame yet, we want all bb annotations that belong to that frame
+            print("analyze", frame_path)
+            # we only have one frame yet, we want all bb annotations that belong to that frame
             frame_entries = []
             for entry in entries:
                 # first element is always the path
@@ -79,15 +84,14 @@ def read_anno_file():
             assert img is not None
 
             for entry in frame_entries:
-                coords =np.array(
-                    [entry[i] for i in list(range(1,5)) + list(range(5,20,2))+list(range(6, 21, 2))]
+                coords = np.array(
+                    [entry[i] for i in list(range(1, 5)) + list(range(5, 20, 2))+list(range(6, 21, 2))]
                 )
                 class_name = entry[21]
                 img = scripts.helper.draw_annotations(img, coords, fac=class_name)
             result = {'keep': True}
 
             def press(event):
-                # print(event.key)
                 if event.key == 'd':
                     result['keep'] = False
 
@@ -95,7 +99,6 @@ def read_anno_file():
             ax.imshow(img)
             fig.canvas.mpl_connect('key_press_event', press)
             plt.waitforbuttonpress(0)
-            #input("")
             plt.close()
             if result['keep']:
                 counter = 0
@@ -104,15 +107,14 @@ def read_anno_file():
                     counter += 1
                 print("will keep this file in", out_file, "with", counter, "entries")
 
-            out_path = os.path.join(out_folder,frame_name_base)
+            out_path = os.path.join(out_folder, frame_name_base)
             print("write to", out_path)
             if not os.path.exists(out_path[:out_path.rfind("/")]):
                 print("created folder", out_path)
                 os.makedirs(out_path[:out_path.rfind("/")])
-            #cv2.imshow(frame_path, img)
-            #cv2.waitKey(0)
+            # cv2.imshow(frame_path, img)
+            # cv2.waitKey(0)
             # cv2.destroyAllWindows()
             cv2.imwrite(out_path, img)
 
 read_anno_file()
-

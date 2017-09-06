@@ -23,11 +23,22 @@ import scripts.helper as helper
 from keras.utils import generic_utils
 # from keras.callbacks import TensorBoard
 
-
+VIZ_DEBUG = False
 sys.setrecursionlimit(40000)
 parser = OptionParser()
 
 C = config.create_config_read_parser(parser)
+logger = helper.Logger(C.output_folder, "log.txt")
+sample_logger = helper.Logger(C.output_folder, "samples.csv")
+sample_logger.log(
+    "Imagepath,Img_W,Img_H,#BBoxes,#ROI anchors,Sel Samp,Sel. Pos,all Pos,Sel. Neg,all Neg"
+)
+res_logger = helper.Logger(C.output_folder, "results.csv")
+res_logger.log(
+    "Epoch #,Classification Accuracy,Mean # of BB from RPN overlapping with ground truthboxes,Former best Loss,"
+    "Total Loss,Loss RPN Classifier,Loss RPN Regression,Loss Classifier-Net Classification,"
+    "Loss Classifier-Net Regression,Epoch Time\n"
+)
 
 if C.parser == 'pascal_voc':
     from keras_frcnn.pascal_voc_parser import get_data
@@ -35,9 +46,11 @@ elif C.parser == 'simple':
     from keras_frcnn.simple_parser import get_data
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
-print("train_frcnn.py", "--path", C.train_path, "--frcnn_weights", C.load_model,
-      "--num_epochs", C.num_epochs, "--epoch_length", C.epoch_length, "--save_every", C.save_every,
-      "--num_rois", C.num_rois)
+logger.log_print(
+    "train_frcnn.py", "--path", C.train_path, "--frcnn_weights", C.load_model,
+    "--num_epochs", C.num_epochs, "--epoch_length", C.epoch_length, "--save_every", C.save_every,
+    "--num_rois", C.num_rois
+)
 splits = None
 # if the splits already exist, we will load them in
 # delete this file if you are a different amount of pictures now
@@ -59,9 +72,9 @@ C.class_mapping = class_mapping
 C.classes_count = classes_count
 # inv_map = {v: k for k, v in class_mapping.items()}
 
-print('Training images per class:')
-pprint.pprint(classes_count)
-print('Num classes (including bg) = {}'.format(len(classes_count)))
+logger.log_print('Training images per class:')
+logger.log_print(str(classes_count))
+logger.log_print('Num classes (including bg) = {}'.format(len(classes_count)))
 
 random.shuffle(all_imgs)
 
@@ -70,8 +83,7 @@ num_imgs = len(all_imgs)
 train_imgs = [s for s in all_imgs if s['imageset'] == 'trainval']
 val_imgs = [s for s in all_imgs if s['imageset'] == 'test']
 
-print('Num train samples {}'.format(len(train_imgs)))
-print('Num val samples {}'.format(len(val_imgs)))
+logger.log_print('Num train samples {}'.format(len(train_imgs)), 'Num val samples {}'.format(len(val_imgs)))
 
 data_gen_train = data_generators.get_anchor_gt(train_imgs, classes_count, C, K.image_dim_ordering(), mode='train')
 data_gen_val = data_generators.get_anchor_gt(val_imgs, classes_count, C, K.image_dim_ordering(), mode='val')
@@ -99,14 +111,7 @@ classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(
 model_rpn = Model(img_input, rpn[:2])
 model_classifier = Model([img_input, roi_input], classifier)
 
-logger = helper.Logger(C.output_folder, "log.txt")
-sample_logger = helper.Logger(C.output_folder, "samples.csv")
-res_logger = helper.Logger(C.output_folder, "results.csv")
-res_logger.log(
-    "Epoch #,Classification Accuracy,Mean # of BB from RPN overlapping with ground truthboxes,Former best Loss,"
-    "Total Loss,Loss RPN Classifier,Loss RPN Regression,Loss Classifier-Net Classification,"
-    "Loss Classifier-Net Regression,Epoch Time\n"
-)
+
 # TC = TensorBoard(log_dir=log_path)
 # TC.set_model(model_classifier)
 
@@ -143,7 +148,7 @@ model_all.compile(optimizer='sgd', loss='mae')
 with open(C.output_folder + "splits.pickle", 'wb') as splits_f:
     splits = {filename: all_imgs_dict[filename]['imageset'] for filename in all_imgs_dict}
     if C.verbose:
-        print("saving splits file with", len(splits), "entries")
+        logger.log_print("saving splits file with", len(splits), "entries")
     pickle.dump(splits, splits_f, protocol=2)
 del all_imgs_dict
 
@@ -234,7 +239,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 else:
                     # if there are more than num_rois/2 positive samples, we can pick at random
                     selected_pos_samples = np.random.choice(pos_samples, C.num_rois // 2, replace=False).tolist()
-
 
                 try:
                     # we will try to fill up the selected samples with negative ones to have num_rois in total
@@ -339,15 +343,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 #     break
 
                 elapsed_time = time.time() - start_time
-                # if C.verbose:
-                #     print('Mean number of bounding boxes from RPN overlapping ground truth boxes: {}'.format(
-                #         mean_overlapping_bboxes))
-                #     print('Classifier accuracy for bounding boxes from RPN: {}'.format(class_acc))
-                #     print('Loss RPN classifier: {}'.format(loss_rpn_cls))
-                #     print('Loss RPN regression: {}'.format(loss_rpn_regr))
-                #     print('Loss Detector classifier: {}'.format(loss_class_cls))
-                #     print('Loss Detector regression: {}'.format(loss_class_regr))
-                #     print('Elapsed time: {}'.format(elapsed_time))
 
                 curr_loss = loss_rpn_cls + loss_rpn_regr + loss_class_cls + loss_class_regr
                 iter_num = 0
@@ -394,7 +389,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                     s = ""
                     for name, val in log:
                         s += str(val) + ","
-                    s+= "\n"
+                    s += "\n"
                     res_logger.log(s)
 
                 logger.log(log)
@@ -411,12 +406,19 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 for name, val in log_entry:
                     tr += name + ": " + str(val) + ", "
                 tr += "\n----\n"
+
+                for l in log_collector:
+                    s = ""
+                    for name, val in l:
+                        s += str(val) + ","
+                    s += "\n"
+                    sample_logger.log(s)
             except:
                 # selected samples might not be defined at the call of the exception
                 pass
 
             logger.log(tr)
-            print("WARNING: An EXCEPTION occured in the main loop of training")
+            print("\nWARNING: An EXCEPTION occured in the main loop of training")
             print(tr)
 
             continue

@@ -102,14 +102,11 @@ def calc_iou(R, img_data, C, class_mapping):
                 tw = np.log((gta[best_bbox, 1] - gta[best_bbox, 0]) / float(w))
                 th = np.log((gta[best_bbox, 3] - gta[best_bbox, 2]) / float(h))
 
-                # Make sure we don't log on 0
-                eps = 10e-10
-
                 # Calculating ground truth for regression parameters of 3d bounding box
                 acc_3d = ([safe_log((gta[best_bbox, 1] - gta[best_bbox, i + 4]) / float(w)) for i in range(8)] +
                           [safe_log((gta[best_bbox, 3] - gta[best_bbox, i + 12]) / float(h)) for i in range(8)])
 
-            else: # can't happen
+            else:  # can't happen
                 print('roi = {} should not appear in calc_iou, only good (>.7) or bad (<.3) examples'.format(best_iou))
                 raise RuntimeError
 
@@ -302,9 +299,6 @@ def non_max_suppression_fast(boxes, probs, overlap_thresh=0.9, max_boxes=300):
     boxes = boxes[pick].astype("int")
     probs = probs[pick]
     return boxes, probs
-
-
-import time
 
 
 def rpn_to_roi(rpn_layer, regr_layer, C, dim_ordering, use_regr=True, max_boxes=300, overlap_thresh=0.9):

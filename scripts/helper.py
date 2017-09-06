@@ -1,8 +1,7 @@
 import os, glob
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+
 
 def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
     """
@@ -22,33 +21,24 @@ def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
 
 #
 # def getFramesVRI():
-#     return os.system('ffmpeg -i /data/mlprak1/VehicleReId-Untouched/video_shots/1A.mov /fzi/ids/mlprak1/no_backup/VehicleReId/1A/1A_%06d.png')
+#     return os.system('ffmpeg -i /data/mlprak1/VehicleReId-Untouched/video_shots/1A.mov '
+#                      '/fzi/ids/mlprak1/no_backup/VehicleReId/1A/1A_%06d.png')
 
 
-def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT="3d_reg", fac="n/a"):
+def draw_annotations(img, coords, roi_pos=None, data_format="3d_reg", fac="n/a"):
     img = np.copy(img)
     # reformat it from zero centered to  3x (0-255)
-    #minimum = np.amin(img)
-    #maximum = np.amax(img)
-    #img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
-    #fig, ax = plt.subplots(1)
-    #ax.imshow(img)
+    # minimum = np.amin(img)
+    # maximum = np.amax(img)
+    # img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
 
-    if DATA_FORMAT == "3d_reg":
+    if data_format == "3d_reg":
         coords.reshape((1, 20))
         if roi_pos is not None:
             roi_pos = np.array(roi_pos)
             roi_pos.reshape((1, -1))
 
-            #rect = patches.Rectangle((roi_pos[0], roi_pos[1]), roi_pos[2], roi_pos[3]
-             #                       # ,linewidth=1, edgecolor='r',facecolor='none'
-             #                        )
-            #ax.add_patch(rect)
-            # cv2.rectangle(img,
-            #     (int(roi_pos[0]), int(roi_pos[1])),
-            #     (int(roi_pos[0]+roi_pos[2]), int(roi_pos[1]+roi_pos[3])),
-            #     roi_color, 1)
-        ################################ STRUCUTRE ########################################################
+        # ############################### STRUCUTRE ########################################################
         # 0"filepath": frame_path_variable,
         # 1"x1": min(x_points),        2"y1": min(y_points),
         # 3"x2": max(x_points),        4"y2": max(y_points),
@@ -75,7 +65,7 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
 
         # use the following colors:
         # (carId, frame,
-        #  upperPointShort_x, upperPointShort_y,      #red  bb_x1
+        #  upperPointShort_x, upperPointShort_y,      #red
         #  upperPointCorner_x, upperPointCorner_y,    #yellow
         #  upperPointLong_x, upperPointLong_y,        #white
         #  crossCorner_x, crossCorner_y,              #cyan
@@ -84,7 +74,7 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         #  longSide_x, longSide_y,                    #green
         #  lowerCrossCorner_x, lowerCrossCorner_y     #purple
         #  )
-        COLORS = [(0, 0, 255),  # red           0
+        colors = [(0, 0, 255),  # red           0
                   (0, 255, 255),  # yellow      1
                   (255, 255, 255),  # white     2
                   (255, 255, 0),  # cyan        3
@@ -93,8 +83,7 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
                   (0, 255, 0),  # green         6
                   (255, 0, 255),  # magenta     7
                   ]
-        c = ['r', 'y', 'w', 'c', 'b', 'k', 'g', 'm']
-        #################### MEANING OF THE COLORS/ANNOTATIONS ##########################
+        # ################### MEANING OF THE COLORS/ANNOTATIONS ##########################
         # The cars are always in this angle
         #
         #       (0,0) >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  (x,0)
@@ -110,50 +99,36 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         #         v   green  ~~~~~~~~~              |   /
         #         v                    ~~~~~~~~~~~~black
         #       (0,y)
-        # #
-        # for i in range(8):
-        #     img = cv2.circle(img, (int(entry[5 + i * 2]), int(entry[5 + i * 2 + 1])), 5, color=COLORS[i], thickness=2)
-        # cv2.rectangle(img, (int(entry[1]), int(entry[2])),
-        #               (int(entry[3]), int(entry[4])), (0, 0, 0), 2)
 
-        #ax.scatter(coords[4:4+8], coords[4+8:4+8+8], c=c)
         for i in range(8):
-            img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 10, color=COLORS[i], thickness=9)
+            img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 10, color=colors[i], thickness=9)
             img = cv2.putText(img, str(i), (int(coords[4 + i]), int(coords[4 + 8 + i])), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,0,0), 4)
         img = cv2.line(img, (int(coords[5]), int(coords[5+8])), (int(coords[8]), int(coords[8+8])), (255, 255, 255), thickness=5)
         img = cv2.line(img, (int(coords[4]), int(coords[4 + 8])), (int(coords[9]), int(coords[9 + 8])), (255, 255, 255), thickness=5)
 
         img = cv2.putText(img, fac, (int(coords[0]), int(coords[1])-50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 23, 23), 4)
-        # print(fac)
-        # cv2.rectangle(img, (int(coords[0]), int(coords[1])),
-        #            (int(coords[2]), int(coords[3])), (0, 0, 0), 2)
 
-        #plt.show(block=False)
-        #keep = input("keep t/f")
-        #print("shown")
-        #plt.close()
-    else:
+    else:  # Mode: Merge Areas
         (_, x1, y1, x2, y2, classname) = coords
-        if classname == 'front':
+        if classname == 'Front':
             color = (255, 255, 0)
             c = 'c'
-        elif classname == 'back':
+        elif classname == 'Back':
             color = (255, 255, 255)
             c = 'w'
-        elif classname == 'side':
+        elif classname == 'Side':
             color = (0, 255, 0)
             c = 'b'
-        elif classname == 'outer':
+        elif classname == 'Outer':
             color = (255, 0, 0)
             c = 'g'
-        elif classname == 'top':
+        elif classname == 'Top':
             color = (255, 0, 225)
             c = 'm'
 
         img = cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), color=color, thickness=5)
 
-        keep = None
-        #################### MEANING OF THE COLORS/ANNOTATIONS ##########################
+        # ################### MEANING OF THE COLORS/ANNOTATIONS ##########################
         # The cars are always in this angle
         #
         #       (0,0) >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  >  (x,0)
@@ -174,17 +149,8 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
         #    FRONTBB: four point marked "F"
         #    SIDEBB:  four points marked "S"
         #    OUTERBB: four points marked "O"
-    #
-    # plt.draw()
-    # result = {'keep': True}
-    # def press(event):
-    #     #print(event.key)
-    #     if event.key == 'd':
-    #         result['keep'] = False
-    # fig.canvas.mpl_connect('key_press_event', press)
-    # plt.waitforbuttonpress(0)
-    # plt.close()
-    return img #, result['keep']
+
+    return img
 
 
 class Logger:
@@ -196,3 +162,8 @@ class Logger:
     def log(self, s):
         with open(self.log_path, "a") as log:
             log.write(str(s))
+
+    def log_print(self, *args):
+        print(*args)
+        with open(self.log_path, "a") as log:
+            log.write(" ".join(map(str, args))+"\n")
