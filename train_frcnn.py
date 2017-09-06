@@ -2,13 +2,14 @@ from __future__ import division
 import random
 import pprint
 import sys
+import traceback
 import time
 import numpy as np
 from optparse import OptionParser
 import os
 import pickle
 import json
-import cv2
+
 
 from keras import backend as K
 from keras.optimizers import Adam  # , SGD, RMSprop
@@ -20,7 +21,6 @@ from keras_frcnn import resnet as nn
 import keras_frcnn.roi_helpers as roi_helpers
 import scripts.helper as helper
 from keras.utils import generic_utils
-
 # from keras.callbacks import TensorBoard
 
 
@@ -99,9 +99,14 @@ classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(
 model_rpn = Model(img_input, rpn[:2])
 model_classifier = Model([img_input, roi_input], classifier)
 
-log_path = C.output_folder + "logs/"
-if not os.path.exists(log_path):
-    os.makedirs(log_path)
+logger = helper.Logger(C.output_folder, "log.txt")
+sample_logger = helper.Logger(C.output_folder, "samples.csv")
+res_logger = helper.Logger(C.output_folder, "results.csv")
+res_logger.log(
+    "Epoch #,Classification Accuracy,Mean # of BB from RPN overlapping with ground truthboxes,Former best Loss,"
+    "Total Loss,Loss RPN Classifier,Loss RPN Regression,Loss Classifier-Net Classification,"
+    "Loss Classifier-Net Regression,Epoch Time\n"
+)
 # TC = TensorBoard(log_dir=log_path)
 # TC.set_model(model_classifier)
 
@@ -146,6 +151,7 @@ iter_num = 0
 losses = np.zeros((C.epoch_length, 5))
 rpn_accuracy_rpn_monitor = []
 rpn_accuracy_for_epoch = []
+log_collector = []
 start_time = time.time()
 
 best_loss = np.Inf
@@ -186,8 +192,8 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
 
             R = roi_helpers.rpn_to_roi(Y1_rpn_pred, Y2_rpn_pred, C, K.image_dim_ordering(), use_regr=True, overlap_thresh=0.7,
                                        max_boxes=300)
-            # R = [boxes, probabilities] that were within the image (some fall out if stride>1)
-            #                            and that NMS allowed to be so close to each other.
+            # R = [[x,y,w,h], [x,y,h,h],...] anchor boxes that were within the image (some fall out if stride>1)
+            #                                and that NMS allowed to be so close to each other (np array)
 
             X2, Y1, Y2 = roi_helpers.calc_iou(R, img_data, C, class_mapping)
             # note: calc_iou converts from (x1,y1,x2,y2) to (x,y,w,h) format
@@ -217,30 +223,63 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             rpn_accuracy_rpn_monitor.append(len(pos_samples))
             rpn_accuracy_for_epoch.append((len(pos_samples)))
 
+            # TODO: figure out, what is a good number of ROIs to be looked at at the same time,
+            # TODO: standard value was 32, but could also be 4?
+            # We have to feed in num_rois samples (of ROIs), ideally half of them should be positive and half negative.
             if C.num_rois > 1:
-                if len(pos_samples) < C.num_rois // 2:  # usually half are positive and half are negative examples
+                if len(pos_samples) < C.num_rois // 2:
+                    # if there are not even num_rois/2 positive samples we will take at least all the ones we have
                     selected_pos_samples = pos_samples.tolist()
-                else:
 
+                else:
+                    # if there are more than num_rois/2 positive samples, we can pick at random
                     selected_pos_samples = np.random.choice(pos_samples, C.num_rois // 2, replace=False).tolist()
-                try:  # TODO: `neg_samples` was empty File "mtrand.pyx", line 1121, in mtrand.RandomState.choice (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
+
+
+                try:
+                    # we will try to fill up the selected samples with negative ones to have num_rois in total
+                    # first try to draw them from neg_samples where each can only be selected once ("ohne zurücklegen")
                     selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                             replace=False).tolist()
                 except:
                     try:
+                        # if that fails draw from the negative samples where each element
+                        # can be selected more than once ("mit zurücklegen")
                         selected_neg_samples = np.random.choice(neg_samples, C.num_rois - len(selected_pos_samples),
                                                                 replace=True).tolist()
                     except:
+                        # TODO: `neg_samples` was empty
+                        # TODO: File "mtrand.pyx", line 1121, in mtrand.RandomState.choice
+                        # TODO: (numpy/random/mtrand/mtrand.c:17200) ValueError: a must be non-empty
+                        # this means there are no negative samples at all in this picture, if this case passes through
+                        # the net will throw an error as the input won't have num_rois samples to work with.
                         selected_neg_samples = []
+                        # assert False
+
                 sel_samples = selected_pos_samples + selected_neg_samples
+
             else:
-                # in the extreme case where num_rois = 1, we pick a random pos or neg sample
+                # in the extreme case if num_rois is set to 1, we pick a random pos or neg sample
                 selected_pos_samples = pos_samples.tolist()
                 selected_neg_samples = neg_samples.tolist()
-                if np.random.randint(0, 2):
+                if np.random.randint(0, 2) or len(selected_pos_samples) == 0:
                     sel_samples = random.choice(neg_samples)
                 else:
                     sel_samples = random.choice(pos_samples)
+
+            log_entry = [
+                ("Imagepath", img_data['filepath']),
+                ("Img_W", img_data['width']),
+                ("Img_H", img_data['height']),
+                ("#BBoxes", len(img_data['bboxes'])),
+                ("#ROI anchors", R.shape[0]),
+                ("Sel. Samples", len(sel_samples)),
+                ("Sel. Pos. Samples", len(selected_pos_samples)),
+                ("from all Pos Samples", len(pos_samples)),
+                ("Sel. Neg. Samples Shape", len(selected_neg_samples)),
+                ("from all Neg Samples", len(neg_samples))
+            ]
+            log_collector.append(log_entry)
 
             class_color = {(1, 0): (50, 50, 50), (0, 1): (200, 200, 200)}
             img = np.copy(X)
@@ -253,6 +292,10 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 x=[X, X2[:, sel_samples, :]],
                 y=[Y1[:, sel_samples, :], Y2[:, sel_samples, :]]
             )
+            # TODO: got error here on 'y=' input:
+            # TODO: alueError: Error when checking model input: expected input_2 to have shape (None, 32, 4)
+            # TODO: but got array with shape (1, 2, 4)
+            # --> not enough samples selected???
 
             losses[iter_num, 0] = loss_rpn[1]
             losses[iter_num, 1] = loss_rpn[2]
@@ -296,15 +339,15 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                 #     break
 
                 elapsed_time = time.time() - start_time
-                if C.verbose:
-                    print('Mean number of bounding boxes from RPN overlapping ground truth boxes: {}'.format(
-                        mean_overlapping_bboxes))
-                    print('Classifier accuracy for bounding boxes from RPN: {}'.format(class_acc))
-                    print('Loss RPN classifier: {}'.format(loss_rpn_cls))
-                    print('Loss RPN regression: {}'.format(loss_rpn_regr))
-                    print('Loss Detector classifier: {}'.format(loss_class_cls))
-                    print('Loss Detector regression: {}'.format(loss_class_regr))
-                    print('Elapsed time: {}'.format(elapsed_time))
+                # if C.verbose:
+                #     print('Mean number of bounding boxes from RPN overlapping ground truth boxes: {}'.format(
+                #         mean_overlapping_bboxes))
+                #     print('Classifier accuracy for bounding boxes from RPN: {}'.format(class_acc))
+                #     print('Loss RPN classifier: {}'.format(loss_rpn_cls))
+                #     print('Loss RPN regression: {}'.format(loss_rpn_regr))
+                #     print('Loss Detector classifier: {}'.format(loss_class_cls))
+                #     print('Loss Detector regression: {}'.format(loss_class_regr))
+                #     print('Elapsed time: {}'.format(elapsed_time))
 
                 curr_loss = loss_rpn_cls + loss_rpn_regr + loss_class_cls + loss_class_regr
                 iter_num = 0
@@ -323,33 +366,60 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
                         print("saving weights of epoch:", epoch_num, "to", checkpoint_path)
                         model_all.save_weights(checkpoint_path)
                 except:
-                    print("couldn't save checkpoint, did you specify 'save_every' in config?")
+                    e = "couldn't save checkpoint, did you specify 'save_every' in config?"
+                    print(e)
+                    logger.log(e)
+                    logger.log("\n---\n")
                     pass
-                log = {
-                    "Classification Accuracy": class_acc,
-                    "Mean # of BB from RPN overlapping with ground truthboxes": mean_overlapping_bboxes,
-                    "Total Loss": curr_loss,
-                    'Loss RPN Classifier': loss_rpn_cls,
-                    "Loss RPN Regression": loss_rpn_regr,
-                    "Loss Classifier-Net Classification": loss_class_cls,
-                    "Loss Classifier-Net Regression": loss_class_regr,
-                    "Epoch #": epoch_num,
-                    "Epoch Time": elapsed_time,
-                }
-                print(log)
+                log = [
+                    ("Epoch #", epoch_num),
+                    ("Classification Accuracy", class_acc),
+                    ("Mean # of BB from RPN overlapping with ground truthboxes", mean_overlapping_bboxes),
+                    ("Former best Loss", best_loss),
+                    ("Total Loss", curr_loss),
+                    ('Loss RPN Classifier', loss_rpn_cls),
+                    ("Loss RPN Regression", loss_rpn_regr),
+                    ("Loss Classifier-Net Classification", loss_class_cls),
+                    ("Loss Classifier-Net Regression", loss_class_regr),
+                    ("Epoch Time", elapsed_time)
+                ]
+                if C.verbose:
+                    print(log)
+                    for log_entry in log_collector:
+                        s = ""
+                        for name, val in log_entry:
+                            s += str(val) + ","
+                        s += "\n"
+                        sample_logger.log(s)
+                    s = ""
+                    for name, val in log:
+                        s += str(val) + ","
+                    s+= "\n"
+                    res_logger.log(s)
+
+                logger.log(log)
+                log_collector = []
                 C.stats.append((epoch_num, log))
                 # TC.on_epoch_end(epoch_num, {'acc': class_acc, 'loss': loss_class_cls})
                 #                TC.on_epoch_end(epoch_num, log)
                 break
 
         except Exception as e:
-            with open(C.output_folder + "error_log.txt", "a") as log:
-                log.write(str(e))
-                log.write("---\n")
-            print('Exception:: {}'.format(e))
+            tr = traceback.format_exc()
 
-            raise
-            # continue
+            try:
+                for name, val in log_entry:
+                    tr += name + ": " + str(val) + ", "
+                tr += "\n----\n"
+            except:
+                # selected samples might not be defined at the call of the exception
+                pass
+
+            logger.log(tr)
+            print("WARNING: An EXCEPTION occured in the main loop of training")
+            print(tr)
+
+            continue
 
     # with open(C.output_folder+"epoch.txt", 'w') as epoch_f:
     #    epoch_f.write(epoch_num)
@@ -363,4 +433,4 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
         json.dump(vars(C), configjson)
 
 # TC.on_train_end()
-print('Training complete, exiting.')
+input('Training complete, press enter to exit')

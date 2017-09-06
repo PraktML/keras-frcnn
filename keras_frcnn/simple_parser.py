@@ -13,10 +13,9 @@ def get_data(input_path, train_test_split=None):
 
     class_mapping = {}
 
-    visualise = True
+    num_lines = sum(1 for _ in open(input_path, 'r'))
 
     with open(input_path, 'r') as f:
-
         # # check if the right splits file is provided
         # if train_test_split is not None:
         #     count_bb = sum(1 for _ in f)
@@ -27,6 +26,7 @@ def get_data(input_path, train_test_split=None):
         # print('Parsing annotation files')
         # f.seek(0)
         idx = 0
+
         for line in f:
             line_split = line.strip().split(',')
 
@@ -57,7 +57,9 @@ def get_data(input_path, train_test_split=None):
                 # each image file is only read in once, but there will be several BB in it.
                 all_imgs[filename] = {}
 
-                print("Simple Parser:", idx, "read", filename)
+                if idx % (num_lines//10) == 0:
+                    print("Simple Parser:", idx, "read", filename)
+
                 img = cv2.imread(filename)
                 if img is None:
                     raise (FileNotFoundError(filename))
@@ -69,7 +71,7 @@ def get_data(input_path, train_test_split=None):
 
                 # determine if the file will be test or training data
                 if train_test_split is None:
-                    if np.random.randint(0, 6) >= 0:
+                    if np.random.randint(0, 6) >= 1:
                         all_imgs[filename]['imageset'] = 'trainval'
                     else:
                         all_imgs[filename]['imageset'] = 'test'

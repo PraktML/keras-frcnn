@@ -318,9 +318,9 @@ def rpn_to_roi(rpn_layer, regr_layer, C, dim_ordering, use_regr=True, max_boxes=
     :param use_regr: use regr_layer to adjust the positions of the fixed grid of the RPN regions
     :param max_boxes: NMS parameter
     :param overlap_thresh: NMS parameter
-    :return: boxes_sel, probs_sel
+    :return: boxes_sel
             all boxes that are inside + apply Non Maximum Suppression
-            shapes (num_anchors * img_width * img_height - not passed, <4 for boxes_sel | 1 for probs_sel>)
+            shape: (num_anchors * img_width * img_height - not passed, 4)
     """
     regr_layer = regr_layer / C.std_scaling
     assert rpn_layer.shape[0] == 1

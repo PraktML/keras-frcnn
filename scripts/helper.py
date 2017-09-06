@@ -184,9 +184,15 @@ def draw_annotations(img, coords, roi_pos=None, roi_color=(0, 0, 0), DATA_FORMAT
     # fig.canvas.mpl_connect('key_press_event', press)
     # plt.waitforbuttonpress(0)
     # plt.close()
-    #print("worked", result['keep'])
-    return img#, result['keep']
+    return img #, result['keep']
 
-def press(event):
-    print("keystroke", event.key)
 
+class Logger:
+    def __init__(self, log_dir, log_file):
+        self.log_path = log_dir + log_file
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+    def log(self, s):
+        with open(self.log_path, "a") as log:
+            log.write(str(s))
