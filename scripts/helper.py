@@ -25,7 +25,7 @@ def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
 #                      '/fzi/ids/mlprak1/no_backup/VehicleReId/1A/1A_%06d.png')
 
 
-def draw_annotations(img, coords, roi_pos=None, data_format="3d_reg", fac="n/a"):
+def draw_annotations(img, coords, data_format="3d_reg", fac="n/a"):
     img = np.copy(img)
     # reformat it from zero centered to  3x (0-255)
     # minimum = np.amin(img)
@@ -34,46 +34,16 @@ def draw_annotations(img, coords, roi_pos=None, data_format="3d_reg", fac="n/a")
 
     if data_format == "3d_reg":
         coords.reshape((1, 20))
-        if roi_pos is not None:
-            roi_pos = np.array(roi_pos)
-            roi_pos.reshape((1, -1))
 
-        # ############################### STRUCUTRE ########################################################
-        # 0"filepath": frame_path_variable,
-        # 1"x1": min(x_points),        2"y1": min(y_points),
-        # 3"x2": max(x_points),        4"y2": max(y_points),
-        # 5"top_front_right_x": upperPointShort_x if facing_left else upperPointCorner_x,
-        # 6"top_front_right_y": upperPointShort_y - cutter if facing_left else upperPointCorner_y - cutter,
-        # 7"top_front_left_x": upperPointCorner_x if facing_left else upperPointShort_x,
-        # 8"top_front_left_y": upperPointCorner_y - cutter if facing_left else upperPointShort_y - cutter,
-        # 9"top_back_left_x": crossCorner_x if facing_left else upperPointLong_x,
-        # 10"top_back_left_y": crossCorner_y - cutter if facing_left else upperPointLong_y  - cutter,
-        # 11"top_back_right_x": upperPointLong_x if facing_left else crossCorner_x,
-        # 12"top_back_right_y": upperPointLong_y  - cutter if facing_left else crossCorner_y  - cutter,
-        #
-        # 13"bot_front_right_x": shortSide_x if facing_left else corner_x,
-        # 14"bot_front_right_y": shortSide_y - cutter if facing_left else corner_y - cutter,
-        # 15"bot_front_left_x": corner_x if facing_left else shortSide_x,
-        # 16"bot_front_left_y": corner_y - cutter if facing_left else shortSide_y - cutter,
-        # 17"bot_back_left_x": lowerCrossCorner_x if facing_left else longSide_x,
-        # 18"bot_back_left_y": lowerCrossCorner_y - cutter if facing_left else longSide_y  - cutter,
-        # 19"bot_back_right_x": longSide_x if facing_left else lowerCrossCorner_x,
-        # 20"bot_back_right_y": longSide_y - cutter if facing_left else lowerCrossCorner_y  - cutter,
-        # 21"class_name": "3DBB"
-        # })
-        ################################################################################################
+        # FORMAT of coords, but the the x and y are sorted.
+        #   0     1     2    3
+        # "x1", "y1", "x2", "y2",
+        #        4:red             4+8: red               5: yellow          5+8: yellow
+        # "top_front_outer_x", "top_front_outer_y", "top_front_inner_x", "top_front_inner_y",
+        # "top_back_inner_x", "top_back_inner_y", "top_back_outer_x", "top_back_outer_y",
+        # "bot_front_outer_x", "bot_front_outer_y", "bot_front_inner_x", "bot_front_inner_y",
+        # "bot_back_inner_x", "bot_back_inner_y", "bot_back_outer_x", "bot_back_outer_y",
 
-        # use the following colors:
-        # (carId, frame,
-        #  upperPointShort_x, upperPointShort_y,      #red
-        #  upperPointCorner_x, upperPointCorner_y,    #yellow
-        #  upperPointLong_x, upperPointLong_y,        #white
-        #  crossCorner_x, crossCorner_y,              #cyan
-        #  shortSide_x, shortSide_y,                  #blue
-        #  corner_x, corner_y,                        #black
-        #  longSide_x, longSide_y,                    #green
-        #  lowerCrossCorner_x, lowerCrossCorner_y     #purple
-        #  )
         colors = [(0, 0, 255),  # red           0
                   (0, 255, 255),  # yellow      1
                   (255, 255, 255),  # white     2
@@ -107,6 +77,7 @@ def draw_annotations(img, coords, roi_pos=None, data_format="3d_reg", fac="n/a")
         img = cv2.line(img, (int(coords[4]), int(coords[4 + 8])), (int(coords[9]), int(coords[9 + 8])), (255, 255, 255), thickness=5)
 
         img = cv2.putText(img, fac, (int(coords[0]), int(coords[1])-50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 23, 23), 4)
+        img = cv2.putText(img, fac, (int(coords[0]), int(coords[3])+5), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 23, 23), 4)
 
     else:  # Mode: Merge Areas
         (_, x1, y1, x2, y2, classname) = coords
@@ -153,6 +124,45 @@ def draw_annotations(img, coords, roi_pos=None, data_format="3d_reg", fac="n/a")
     return img
 
 
+def show_img_data(X, img_data, C, outpath="./"):
+    make_missing_dirs(outpath)
+    img = np.copy(X)[0][:,:,[2,1,0]]
+    # reformat it from zero centered to  3x (0-255)
+    minimum = np.amin(img)
+    maximum = np.amax(img)
+    img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
+
+    width, height = img_data['width'], img_data['height']
+    (resized_width, resized_height) = get_new_img_size(width, height, C.im_size)
+    w_ratio = resized_width / float(width)
+    h_ratio = resized_height / float(height)
+    for bbox in img_data['bboxes']:
+        # simple parser inserts in this format:
+        # {'class': class_name, 'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2),
+        #  'bb_x1': int(bb_x1), 'bb_y1': int(bb_y1), 'bb_x2': int(bb_x2), 'bb_y2': int(bb_y2),
+        #  'bb_x3': int(bb_x3), 'bb_y3': int(bb_y3), 'bb_x4': int(bb_x4), 'bb_y4': int(bb_y4),
+        #  'bb_x5': int(bb_x5), 'bb_y5': int(bb_y5), 'bb_x6': int(bb_x6), 'bb_y6': int(bb_y6),
+        #  'bb_x7': int(bb_x7), 'bb_y7': int(bb_y7), 'bb_x8': int(bb_x8), 'bb_y8': int(bb_y8),
+        #  },
+
+        order = [
+            'x1', 'y1', 'x2', 'y2',
+            'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
+            'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
+        ]
+        ratio_multiplier = [w_ratio, h_ratio]*2 + [w_ratio]*8 + [h_ratio]*8
+
+        coords = np.array([int(bbox[order[i]]*ratio_multiplier[i]) for i in range(20)])
+        img = draw_annotations(img, coords, data_format="3d_reg", fac=bbox['class'])
+    print("Showing File", img_data['filepath'])
+    filename = "anno_" + img_data['filepath'][img_data['filepath'].rfind("/")+1:]
+
+    cv2.imwrite(outpath + filename, img)
+    print(img_data)
+    # input("saved annotations to " + filename)
+    return
+
+
 class Logger:
     def __init__(self, log_dir, log_file):
         self.log_path = log_dir + log_file
@@ -167,3 +177,21 @@ class Logger:
         print(*args)
         with open(self.log_path, "a") as log:
             log.write(" ".join(map(str, args))+"\n")
+
+
+def make_missing_dirs(folder):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+
+def get_new_img_size(width, height, img_min_side=600):
+    if width <= height:
+        f = float(img_min_side) / width
+        resized_height = int(f * height)
+        resized_width = img_min_side
+    else:
+        f = float(img_min_side) / height
+        resized_width = int(f * width)
+        resized_height = img_min_side
+
+    return resized_width, resized_height

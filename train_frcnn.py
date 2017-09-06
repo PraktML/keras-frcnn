@@ -23,7 +23,7 @@ import scripts.helper as helper
 from keras.utils import generic_utils
 # from keras.callbacks import TensorBoard
 
-VIZ_DEBUG = False
+VIZ_DEBUG = True
 sys.setrecursionlimit(40000)
 parser = OptionParser()
 
@@ -186,8 +186,14 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             #     y_rpn_regr=[4*y_rpn_overlap, y_rpn_regr]],
             # an anchor position is valid if IoU <0.3 | >0.7 and overlapping if IoU >0.7 with a GT box (values 0 | 1)
             # the regression values are the the closest object.
-            # img_data: img_data_aug
+            # img_data: {'filepath': ..., 'width': #, 'height': #, 'bboxes': [
+            #                     {'x1': #, .. 'bb_y8': #}, ...,  {'x1': #, .. 'bb_y8': #} ]
             # shape (1,38,67,18)
+
+            if VIZ_DEBUG:
+                helper.show_img_data(X, img_data, C, outpath=C.output_folder+"viz/")
+
+
             loss_rpn = model_rpn.train_on_batch(X, Y)
 
             [Y1_rpn_pred, Y2_rpn_pred] = model_rpn.predict_on_batch(X)
