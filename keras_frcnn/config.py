@@ -27,6 +27,7 @@ class Config:
         self.use_horizontal_flips = False
         self.use_vertical_flips = False
         self.rot_90 = False
+        self.use_crop = False
 
         # anchor box scales
         self.anchor_box_scales = [128, 256, 512]
@@ -112,6 +113,8 @@ def create_config_read_parser(parser):
     parser.add_option("--rot", "--rot_90", dest="rot_90",
                       help="Augment with 90 degree rotations in training. (Default=false).",
                       action="store_true", default=False)
+    parser.add_option("--crop", dest="crop", help="crop the image around one car bbox for variation",
+                      action="store_true", default=False)
     parser.add_option("--num_epochs", dest="num_epochs", help="Number of epochs.",
                       default=1000)  # 2000
     parser.add_option("--epoch_length", dest="epoch_length", help="Number of batches in an epoch",
@@ -158,6 +161,7 @@ def create_config_read_parser(parser):
     C.use_horizontal_flips = bool(options.horizontal_flips)
     C.use_vertical_flips = bool(options.vertical_flips)
     C.rot_90 = bool(options.rot_90)
+    C.use_crop = bool(options.crop)
 
     C.epoch_length = int(options.epoch_length)
     C.num_epochs = int(options.num_epochs)

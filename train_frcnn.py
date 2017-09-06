@@ -191,7 +191,7 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             # shape (1,38,67,18)
 
             if VIZ_DEBUG:
-                helper.show_img_data(X, img_data, C, outpath=C.output_folder+"viz/")
+                helper.show_net_input(X, img_data, C, outpath=C.output_folder + "viz/")
 
 
             loss_rpn = model_rpn.train_on_batch(X, Y)
@@ -426,7 +426,6 @@ for epoch_num in range(C.current_epoch, C.num_epochs):
             logger.log(tr)
             print("\nWARNING: An EXCEPTION occured in the main loop of training")
             print(tr)
-
             continue
 
     # with open(C.output_folder+"epoch.txt", 'w') as epoch_f:

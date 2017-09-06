@@ -124,16 +124,10 @@ def draw_annotations(img, coords, data_format="3d_reg", fac="n/a"):
     return img
 
 
-def show_img_data(X, img_data, C, outpath="./"):
+def show_img_data(img, img_data, im_size, outpath="./", prefix="anno_", scale=True):
     make_missing_dirs(outpath)
-    img = np.copy(X)[0][:,:,[2,1,0]]
-    # reformat it from zero centered to  3x (0-255)
-    minimum = np.amin(img)
-    maximum = np.amax(img)
-    img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
-
     width, height = img_data['width'], img_data['height']
-    (resized_width, resized_height) = get_new_img_size(width, height, C.im_size)
+    (resized_width, resized_height) = get_new_img_size(width, height, im_size)
     w_ratio = resized_width / float(width)
     h_ratio = resized_height / float(height)
     for bbox in img_data['bboxes']:
@@ -150,17 +144,31 @@ def show_img_data(X, img_data, C, outpath="./"):
             'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
             'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
         ]
-        ratio_multiplier = [w_ratio, h_ratio]*2 + [w_ratio]*8 + [h_ratio]*8
-
+        if scale:
+            ratio_multiplier = [w_ratio, h_ratio]*2 + [w_ratio]*8 + [h_ratio]*8
+        else:
+            ratio_multiplier = [1]*20
         coords = np.array([int(bbox[order[i]]*ratio_multiplier[i]) for i in range(20)])
         img = draw_annotations(img, coords, data_format="3d_reg", fac=bbox['class'])
+        if 'crop' in img_data:
+            img = cv2.putText(img, str(img_data['crop']),
+                              (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,0,0), 4)
     print("Showing File", img_data['filepath'])
-    filename = "anno_" + img_data['filepath'][img_data['filepath'].rfind("/")+1:]
+    filename = prefix + img_data['filepath'][img_data['filepath'].rfind("/")+1:]
 
     cv2.imwrite(outpath + filename, img)
     print(img_data)
     # input("saved annotations to " + filename)
     return
+
+
+def show_net_input(X, img_data, C, outpath="./"):
+    img = np.copy(X)[0][:, :, [2, 1, 0]]
+    # reformat it from zero centered to  3x (0-255)
+    minimum = np.amin(img)
+    maximum = np.amax(img)
+    img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
+    show_img_data(img, img_data, C.im_size, outpath)
 
 
 class Logger:
