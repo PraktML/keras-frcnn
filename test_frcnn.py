@@ -271,7 +271,6 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                 ty /= C.classifier_regr_std[1]
                 tw /= C.classifier_regr_std[2]
                 th /= C.classifier_regr_std[3]
-
                 bb3d_x = [v / C.classifier_regr_std[2] for v in bb3d[:8]]
                 bb3d_y = [v / C.classifier_regr_std[3] for v in bb3d[8:]]
 

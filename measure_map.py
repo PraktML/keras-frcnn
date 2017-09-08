@@ -2,9 +2,11 @@ import os
 import cv2
 import numpy as np
 import sys
+import copy
 import pickle
 from optparse import OptionParser
 import time
+import scripts.helper as helper
 from keras_frcnn import config
 import keras_frcnn.resnet as nn
 from keras import backend as K
@@ -29,10 +31,10 @@ def get_map(pred, gt, f):
     for box_idx in box_idx_sorted_by_prob:
         pred_box = pred[box_idx]
         pred_class = pred_box['class']
-        pred_x1 = pred_box['x1']
-        pred_x2 = pred_box['x2']
-        pred_y1 = pred_box['y1']
-        pred_y2 = pred_box['y2']
+        # pred_x1 = pred_box['x1']
+        # pred_x2 = pred_box['x2']
+        # pred_y1 = pred_box['y1']
+        # pred_y2 = pred_box['y2']
         pred_prob = pred_box['prob']
         if pred_class not in P:
             P[pred_class] = []
@@ -42,27 +44,38 @@ def get_map(pred, gt, f):
 
         for gt_box in gt:
             gt_class = gt_box['class']
-            gt_x1 = gt_box['x1'] / fx
-            gt_x2 = gt_box['x2'] / fx
-            gt_y1 = gt_box['y1'] / fy
-            gt_y2 = gt_box['y2'] / fy
+            gt_3dd = copy.deepcopy(gt_box)
+            keys_x = ['x1', 'x2', 'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8']
+            keys_y = ['y1', 'y2', 'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
+            # gt_x1 = gt_box['x1'] / fx
+            # gt_x2 = gt_box['x2'] / fx
+            # gt_y1 = gt_box['y1'] / fy
+            # gt_y2 = gt_box['y2'] / fy
+            for key_x in keys_x:
+                gt_3dd[keys_x] /= fx
+            for key_y in keys_y:
+                gt_3dd[keys_y] /= fy
+
             gt_seen = gt_box['bbox_matched']
             if gt_class != pred_class:
                 continue
             if gt_seen:
-                continue
-            iou = data_generators.iou((pred_x1, pred_y1, pred_x2, pred_y2), (gt_x1, gt_y1, gt_x2, gt_y2))
+                continue  # TODO: why can this occur?
+            # iou = data_generators.iou((pred_x1, pred_y1, pred_x2, pred_y2), (gt_x1, gt_y1, gt_x2, gt_y2))
+            iou = data_generators.iou((pred_box['x1'], pred_box['y1'], pred_box['x2'], pred_box['y2']),
+                                      (gt_3dd['x1'], gt_3dd['y1'], gt_3dd['x2'], gt_3dd['y2']))
+            iou3d = data_generators.iou3d(pred_box, gt_3dd)
             if iou >= 0.5:
                 found_match = True
                 gt_box['bbox_matched'] = True
-                break
+                break  # TODO: delete break here, if we want to check for all.
             else:
                 continue
 
         T[pred_class].append(int(found_match))
 
     for gt_box in gt:
-        if not gt_box['bbox_matched'] and not gt_box['difficult']:
+        if not gt_box['bbox_matched']:  #TODO there was "and not gt_box['difficult']:" before, why?
             if gt_box['class'] not in P:
                 P[gt_box['class']] = []
                 T[gt_box['class']] = []
@@ -85,13 +98,19 @@ parser.add_option("-n", "--num_rois", dest="num_rois",
 parser.add_option("--config_filename", dest="config_filename", help=
 "Location to read the metadata related to the training (generated when training).",
                   default="config.pickle")
+parser.add_option("-m", "--model", dest="model", default="model_frcnn.hdf5",
+                  help="Name of the model that shall be loaded")
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
-                  default="pascal_voc"),
+                  default="simple"),
 
 (options, args) = parser.parse_args()
 
+# if not options.test_path:  # if filename is not given
+#     parser.error('Error: path to test data must be specified. Pass --path to command line')
 if not options.test_path:  # if filename is not given
-    parser.error('Error: path to test data must be specified. Pass --path to command line')
+    run_path = helper.chose_from_folder("runs/", "*", "--path")
+else:
+    run_path = options.test_path
 
 if options.parser == 'pascal_voc':
     from keras_frcnn.pascal_voc_parser import get_data
@@ -100,9 +119,9 @@ elif options.parser == 'simple':
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 
-config_output_filename = options.config_filename
+config_output_filename = os.path.join(run_path, options.config_filename)
 
-with open(config_output_filename, 'r') as f_in:
+with open(config_output_filename, 'rb') as f_in:
     C = pickle.load(f_in)
 
 # turn off any data augmentation at test time
@@ -110,7 +129,7 @@ C.use_horizontal_flips = False
 C.use_vertical_flips = False
 C.rot_90 = False
 
-img_path = options.test_path
+
 
 
 def format_img(img, C):
@@ -144,7 +163,7 @@ class_mapping = C.class_mapping
 if 'bg' not in class_mapping:
     class_mapping['bg'] = len(class_mapping)
 
-class_mapping = {v: k for k, v in class_mapping.iteritems()}
+class_mapping = {v: k for k, v in class_mapping.items()}
 print(class_mapping)
 class_to_color = {class_mapping[v]: np.random.randint(0, 255, 3) for v in class_mapping}
 C.num_rois = int(options.num_rois)
@@ -174,25 +193,34 @@ model_classifier_only = Model([feature_map_input, roi_input], classifier)
 
 model_classifier = Model([feature_map_input, roi_input], classifier)
 
-model_rpn.load_weights(C.model_path, by_name=True)
-model_classifier.load_weights(C.model_path, by_name=True)
+model_path = os.path.join(run_path, options.model)
+model_rpn.load_weights(model_path, by_name=True)
+model_classifier.load_weights(model_path, by_name=True)
 
 model_rpn.compile(optimizer='sgd', loss='mse')
 model_classifier.compile(optimizer='sgd', loss='mse')
 
-all_imgs, _, _ = get_data(options.test_path)
-test_imgs = [s for s in all_imgs if s['imageset'] == 'test']
+
+splits = None
+# if the splits already exist, we will load them in
+# delete this file if you are a different amount of pictures now
+if os.path.exists(C.output_folder + "splits.pickle"):
+    with open(C.output_folder + "splits.pickle", 'rb') as splits_f:
+        splits = pickle.load(splits_f)
+# C.train_path contains the path to the annotation file (a saved version is also stored in the run folder)
+all_imgs, _, _ = get_data(C.train_path, splits)
+test_imgs = [v for s,v in all_imgs.items() if v['imageset'] == 'test']
 
 T = {}
 P = {}
 for idx, img_data in enumerate(test_imgs):
-    print('{}/{}'.format(idx, len(test_imgs)))
+    print('test image {}/{}:'.format(idx, len(test_imgs)))
     st = time.time()
     filepath = img_data['filepath']
 
     img = cv2.imread(filepath)
 
-    X, fx, fy = format_img(img, C)
+    X, fx, fy = format_img(img, C)  # fx, fy are the scale factors for width and height for image X
 
     if K.image_dim_ordering() == 'tf':
         X = np.transpose(X, (0, 2, 3, 1))
@@ -241,15 +269,28 @@ for idx, img_data in enumerate(test_imgs):
 
             cls_num = np.argmax(P_cls[0, ii, :])
             try:
-                (tx, ty, tw, th) = P_regr[0, ii, 4 * cls_num:4 * (cls_num + 1)]
+                regr_result = P_regr[0, ii, 20 * cls_num:20 * (cls_num + 1)]
+                tx = regr_result[0]
+                ty = regr_result[1]
+                tw = regr_result[2]
+                th = regr_result[3]
+                bb3d = regr_result[4:]
+
                 tx /= C.classifier_regr_std[0]
                 ty /= C.classifier_regr_std[1]
                 tw /= C.classifier_regr_std[2]
                 th /= C.classifier_regr_std[3]
-                x, y, w, h = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th)
+                bb3d_x = [v / C.classifier_regr_std[2] for v in bb3d[:8]]
+                bb3d_y = [v / C.classifier_regr_std[3] for v in bb3d[8:]]
+
+                x, y, w, h, bb3d_regr = roi_helpers.apply_regr(x, y, w, h, tx, ty, tw, th, bb3d_x + bb3d_y)
             except:
                 pass
-            bboxes[cls_name].append([16 * x, 16 * y, 16 * (x + w), 16 * (y + h)])
+            # bboxes[cls_name].append([16 * x, 16 * y, 16 * (x + w), 16 * (y + h)])
+            bboxes[cls_name].append(
+                [C.rpn_stride * x, C.rpn_stride * y, C.rpn_stride * (x + w), C.rpn_stride * (y + h)] + [
+                    C.rpn_stride * (x + w - v) for v in bb3d_regr[:8]] + [C.rpn_stride * (y + h - v) for v in
+                                                                          bb3d_regr[8:]])
             probs[cls_name].append(np.max(P_cls[0, ii, :]))
 
     all_dets = []
@@ -259,8 +300,15 @@ for idx, img_data in enumerate(test_imgs):
 
         new_boxes, new_probs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[key]), overlap_thresh=0.5)
         for jk in range(new_boxes.shape[0]):
-            (x1, y1, x2, y2) = new_boxes[jk, :]
-            det = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': key, 'prob': new_probs[jk]}
+            res = new_boxes[jk, :]
+            points = ['x1', 'y1', 'x2', 'y2',
+                    'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
+                    'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
+                    ]
+            # det = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': key, 'prob': new_probs[jk]}
+            det = {points: res[idx] for idx, points in enumerate(points)}
+            det['class'] = key
+            det['prob'] = new_probs[jk]
             all_dets.append(det)
 
     print('Elapsed time = {}'.format(time.time() - st))

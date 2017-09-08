@@ -14,17 +14,18 @@ def get_data(input_path, train_test_split=None):
     class_mapping = {}
 
     num_lines = sum(1 for _ in open(input_path, 'r'))
+    if train_test_split is not None:
+        with open(input_path, 'r') as f:
+            anno_bbs = set([
+                line.strip().split(',')[0] for line in f
+            ])
+            count_anno_bb = len(anno_bbs)
+        if count_anno_bb != len(train_test_split):
+            input("Length of splits file {} and # of bounding box entries {} don't match, "
+                  "if you press enter the splits file will be ignored".format(len(train_test_split), count_anno_bb))
+            train_test_split = None
 
     with open(input_path, 'r') as f:
-        # # check if the right splits file is provided
-        # if train_test_split is not None:
-        #     count_bb = sum(1 for _ in f)
-        #     if len(train_test_split)!=count_bb:
-        #         input("Length of splits file {} and # of bounding box entries {} don't match, "
-        #               "if you press enter the splits file will be ignored".format(len(train_test_split),count_bb))
-        #         train_test_split = None
-        # print('Parsing annotation files')
-        # f.seek(0)
         idx = 0
 
         for line in f:
