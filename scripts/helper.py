@@ -10,7 +10,8 @@ def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
     :param missing_parameter: give an additional explanation how to avoid this chooser
     :return: the folder/file name, attention it doesn't add a "/" for folders in the end.
     """
-    assert folder_path[-1] == "/"
+    if folder_path[-1] != "/":
+        folder_path += "/"
     if missing_parameter:
         print("The parameter", missing_parameter, "was not set")
     print("Pick a suitable element from the folder:", folder_path, "cwd:", os.getcwd())
@@ -33,7 +34,7 @@ def draw_annotations(img, coords, data_format="3d_reg", fac="n/a"):
     # img = ((img - minimum + 0) * 255 / (maximum - minimum)).astype(np.uint8).copy()
 
     if data_format == "3d_reg":
-        coords.reshape((1, 20))
+        np.array(coords).reshape((1, 20))
 
         # FORMAT of coords, but the the x and y are sorted.
         #   0     1     2    3
@@ -203,3 +204,54 @@ def get_new_img_size(width, height, img_min_side=600):
         resized_height = img_min_side
 
     return resized_width, resized_height
+
+
+
+def format_img_size(img, C):
+    """ formats the image size based on config """
+    img_min_side = float(C.im_size)
+    (height, width, _) = img.shape
+    if width <= height:
+        ratio = img_min_side / width
+        new_height = int(ratio * height)
+        new_width = int(img_min_side)
+    else:
+        ratio = img_min_side / height
+        new_width = int(ratio * width)
+        new_height = int(img_min_side)
+    img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+    # print("ratio=", ratio)
+
+    return img, ratio
+
+
+def format_img_channels(img, C):
+    """ formats the image channels based on config """
+    img = img[:, :, (2, 1, 0)]
+    img = img.astype(np.float32)
+    img[:, :, 0] -= C.img_channel_mean[0]
+    img[:, :, 1] -= C.img_channel_mean[1]
+    img[:, :, 2] -= C.img_channel_mean[2]
+    img /= C.img_scaling_factor
+    img = np.transpose(img, (2, 0, 1))
+    img = np.expand_dims(img, axis=0)
+    return img
+
+
+def format_img(img, C):
+    """ formats an image for model prediction based on config """
+    img, ratio = format_img_size(img, C)
+    img = format_img_channels(img, C)
+    return img, ratio
+
+
+# Method to transform the coordinates of the bounding box to its original size
+def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
+    real_x1 = int(round(x1 // ratio))
+    real_y1 = int(round(y1 // ratio))
+    real_x2 = int(round(x2 // ratio))
+    real_y2 = int(round(y2 // ratio))
+
+    real_bb3d = [int(round(v // ratio)) for v in bb3d]
+
+    return (real_x1, real_y1, real_x2, real_y2, real_bb3d)

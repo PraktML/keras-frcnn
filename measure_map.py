@@ -18,8 +18,17 @@ from sklearn.metrics import average_precision_score
 
 
 def get_map(pred, gt, f):
+    """
+    :param pred:
+    :param gt:
+    :param f:
+    :return: T, P dict with each class name as key
+            P pred probabilities list
+    """
     T = {}
     P = {}
+    metric_mse = []
+    metric_dist = []
     fx, fy = f
 
     for bbox in gt:
@@ -29,6 +38,7 @@ def get_map(pred, gt, f):
     box_idx_sorted_by_prob = np.argsort(pred_probs)[::-1]
 
     for box_idx in box_idx_sorted_by_prob:
+        # iterate over all bounding boxes sorted by probability, the highest with an overlap of
         pred_box = pred[box_idx]
         pred_class = pred_box['class']
         # pred_x1 = pred_box['x1']
@@ -42,7 +52,13 @@ def get_map(pred, gt, f):
         P[pred_class].append(pred_prob)
         found_match = False
 
-        for gt_box in gt:
+        best_dist3d = float('inf')
+        best_dist3d_gt_id = -1
+        best_mse3d = float('inf')
+        best_mse3d_gt_id = -1
+
+        # trying to find a matching GT for this found bounding box
+        for gt_id, gt_box in enumerate(gt):
             gt_class = gt_box['class']
             gt_3dd = copy.deepcopy(gt_box)
             keys_x = ['x1', 'x2', 'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8']
@@ -52,9 +68,9 @@ def get_map(pred, gt, f):
             # gt_y1 = gt_box['y1'] / fy
             # gt_y2 = gt_box['y2'] / fy
             for key_x in keys_x:
-                gt_3dd[keys_x] /= fx
+                gt_3dd[key_x] /= fx
             for key_y in keys_y:
-                gt_3dd[keys_y] /= fy
+                gt_3dd[key_y] /= fy
 
             gt_seen = gt_box['bbox_matched']
             if gt_class != pred_class:
@@ -64,15 +80,25 @@ def get_map(pred, gt, f):
             # iou = data_generators.iou((pred_x1, pred_y1, pred_x2, pred_y2), (gt_x1, gt_y1, gt_x2, gt_y2))
             iou = data_generators.iou((pred_box['x1'], pred_box['y1'], pred_box['x2'], pred_box['y2']),
                                       (gt_3dd['x1'], gt_3dd['y1'], gt_3dd['x2'], gt_3dd['y2']))
-            iou3d = data_generators.iou3d(pred_box, gt_3dd)
+            dist3d = data_generators.dist3d(pred_box, gt_3dd, gt_3dd['x2'] - gt_3dd['x1'], gt_3dd['y2']-gt_3dd['y1'])
+            mse3d = data_generators.mse3d(pred_box, gt_3dd)
+
+            if dist3d < best_dist3d:
+                best_dist3d = dist3d
+                best_dist3d_gt_id = gt_id
+            if mse3d < best_dist3d:
+                best_mse3d = mse3d
+                best_mse3d_gt_id = gt_id
+
             if iou >= 0.5:
                 found_match = True
                 gt_box['bbox_matched'] = True
                 break  # TODO: delete break here, if we want to check for all.
             else:
                 continue
-
         T[pred_class].append(int(found_match))
+        metric_dist.append((best_dist3d_gt_id, best_dist3d))
+        metric_mse.append((best_mse3d_gt_id, best_mse3d))
 
     for gt_box in gt:
         if not gt_box['bbox_matched']:  #TODO there was "and not gt_box['difficult']:" before, why?
@@ -81,24 +107,24 @@ def get_map(pred, gt, f):
                 T[gt_box['class']] = []
 
             T[gt_box['class']].append(1)
-            P[gt_box['class']].append(0)
+            P[gt_box['class']].append(0.0)  # this was recognized with a probability of 0.0
 
     # import pdb
     # pdb.set_trace()
-    return T, P
+    return T, P, metric_dist, metric_mse
 
 
 sys.setrecursionlimit(40000)
 
 parser = OptionParser()
 
-parser.add_option("-p", "--path", dest="test_path", help="Path to test data.")
+parser.add_option("-p", "--path", dest="run_folder", help="Path to test data.")
 parser.add_option("-n", "--num_rois", dest="num_rois",
                   help="Number of ROIs per iteration. Higher means more memory use.", default=32)
 parser.add_option("--config_filename", dest="config_filename", help=
 "Location to read the metadata related to the training (generated when training).",
                   default="config.pickle")
-parser.add_option("-m", "--model", dest="model", default="model_frcnn.hdf5",
+parser.add_option("-m", "--model", dest="model",
                   help="Name of the model that shall be loaded")
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
                   default="simple"),
@@ -107,10 +133,24 @@ parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of s
 
 # if not options.test_path:  # if filename is not given
 #     parser.error('Error: path to test data must be specified. Pass --path to command line')
-if not options.test_path:  # if filename is not given
-    run_path = helper.chose_from_folder("runs/", "*", "--path")
+if not options.run_folder:  # if filename is not given
+    run_folder = helper.chose_from_folder("runs/", "*", "--path")
 else:
-    run_path = options.test_path
+    run_folder = options.run_folder
+
+if options.model:
+    model_path = options.model
+else:
+    model_path = helper.chose_from_folder(run_folder, "*.hdf5", "--model")
+config_output_filename = run_folder + "config.pickle"
+print("Specified Model for Testing:", model_path)
+
+model_name = model_path[model_path.rfind("/") + 1:]
+results_folder = os.path.join(run_folder, "results_" + model_name[:model_name.rfind(".")] + "/")
+if not os.path.exists(results_folder):
+    os.makedirs(results_folder)
+print("write to", results_folder)
+
 
 if options.parser == 'pascal_voc':
     from keras_frcnn.pascal_voc_parser import get_data
@@ -119,7 +159,7 @@ elif options.parser == 'simple':
 else:
     raise ValueError("Command line option parser must be one of 'pascal_voc' or 'simple'")
 
-config_output_filename = os.path.join(run_path, options.config_filename)
+config_output_filename = os.path.join(run_folder, options.config_filename)
 
 with open(config_output_filename, 'rb') as f_in:
     C = pickle.load(f_in)
@@ -130,9 +170,8 @@ C.use_vertical_flips = False
 C.rot_90 = False
 
 
-
-
-def format_img(img, C):
+def format_img(img_c, C):
+    img = np.copy(img_c)
     img_min_side = float(C.im_size)
     (height, width, _) = img.shape
 
@@ -193,7 +232,6 @@ model_classifier_only = Model([feature_map_input, roi_input], classifier)
 
 model_classifier = Model([feature_map_input, roi_input], classifier)
 
-model_path = os.path.join(run_path, options.model)
 model_rpn.load_weights(model_path, by_name=True)
 model_classifier.load_weights(model_path, by_name=True)
 
@@ -208,6 +246,9 @@ if os.path.exists(C.output_folder + "splits.pickle"):
     with open(C.output_folder + "splits.pickle", 'rb') as splits_f:
         splits = pickle.load(splits_f)
 # C.train_path contains the path to the annotation file (a saved version is also stored in the run folder)
+# TODO: remove this
+splits = None
+C.train_path = "annotations/bb_3DregCrop.txt"
 all_imgs, _, _ = get_data(C.train_path, splits)
 test_imgs = [v for s,v in all_imgs.items() if v['imageset'] == 'test']
 
@@ -217,11 +258,19 @@ for idx, img_data in enumerate(test_imgs):
     print('test image {}/{}:'.format(idx, len(test_imgs)))
     st = time.time()
     filepath = img_data['filepath']
+    img_name = filepath[filepath.rfind("/")+1:]
 
     img = cv2.imread(filepath)
 
     X, fx, fy = format_img(img, C)  # fx, fy are the scale factors for width and height for image X
 
+    for bbox in img_data['bboxes']:
+        points = [
+            'x1', 'y1', 'x2', 'y2',
+            'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
+            'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
+        ]
+        img = helper.draw_annotations(img, [bbox[point] for point in points], data_format="3d_reg", fac=bbox['class'])
     if K.image_dim_ordering() == 'tf':
         X = np.transpose(X, (0, 2, 3, 1))
 
@@ -301,10 +350,11 @@ for idx, img_data in enumerate(test_imgs):
         new_boxes, new_probs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[key]), overlap_thresh=0.5)
         for jk in range(new_boxes.shape[0]):
             res = new_boxes[jk, :]
-            points = ['x1', 'y1', 'x2', 'y2',
-                    'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
-                    'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
-                    ]
+            points = [
+                'x1', 'y1', 'x2', 'y2',
+                'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
+                'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
+            ]
             # det = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': key, 'prob': new_probs[jk]}
             det = {points: res[idx] for idx, points in enumerate(points)}
             det['class'] = key
@@ -312,11 +362,67 @@ for idx, img_data in enumerate(test_imgs):
             all_dets.append(det)
 
     print('Elapsed time = {}'.format(time.time() - st))
-    t, p = get_map(all_dets, img_data['bboxes'], (fx, fy))
+    t, p, metric_dist, metric_mse = get_map(all_dets, img_data['bboxes'], (fx, fy))
+
+    # sort indexes by predicted probabilites (is also done like that in get_map)
+    pred_probs = np.array([s['prob'] for s in all_dets])
+    box_idx_sorted_by_prob = np.argsort(pred_probs)[::-1]
+    _, ratio = helper.format_img(img, C)
+
+    for box_idx in box_idx_sorted_by_prob:
+        bbox = all_dets[box_idx]
+        (real_x1, real_y1, real_x2, real_y2, real_bb3d) = helper.get_real_coordinates(
+            ratio, bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2'],
+            [bbox[k] for k in
+                ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
+                 'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
+            ]
+        )
+        colors = [(0, 0, 255),  # red           0
+                  (0, 255, 255),  # yellow      1
+                  (255, 255, 255),  # white     2
+                  (255, 255, 0),  # cyan        3
+                  (255, 0, 0),  # blue          4
+                  (0, 0, 0),  # black           5
+                  (0, 255, 0),  # green         6
+                  (255, 0, 255),  # magenta     7
+                  ]
+        for point in range(8):
+            cv2.circle(img, (real_bb3d[point], real_bb3d[point + 8]), 1, colors[point], 3)
+
+        # P1 - P2
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P1 - P4
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P1 - P5
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P2 - P3
+        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P2 - P6
+        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P3 - P4
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P3 - P7
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P4 - P8
+        cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P5 - P6
+        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P5 - P8
+        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P6 - P7
+        cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), (0, 0, 0), 1, cv2.LINE_AA)
+        # P7 - P8
+        cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), (0, 0, 0), 1, cv2.LINE_AA)
+
+    print("Distances:", metric_dist)
+    print("MSE:", metric_mse)
+
     for key in t.keys():
         if key not in T:
             T[key] = []
             P[key] = []
+        # add new entries too all classes that had to be recognized.
         T[key].extend(t[key])
         P[key].extend(p[key])
     all_aps = []
@@ -327,3 +433,8 @@ for idx, img_data in enumerate(test_imgs):
     print('mAP = {}'.format(np.mean(np.array(all_aps))))
     # print(T)
     # print(P)
+    img_path = results_folder + '{}.png'.format(img_name)
+    print("write img to", img_path)
+    cv2.imwrite(img_path, img)
+
+

@@ -53,7 +53,7 @@ def iou(a, b):
     return float(area_i) / float(area_u)
 
 
-def iou3d(a, b):
+def dist3d(a, b, width, height):
     # a and b should be dicts with {'x1': #, .. 'bb_y8': #}
     keys_x = ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8']
     keys_y = ['bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
@@ -64,8 +64,21 @@ def iou3d(a, b):
     bx_mean = np.mean([b[key] for key in keys_x])
     by_mean = np.mean([b[key] for key in keys_y])
 
-    dist = ((ax_mean - bx_mean)**2 + (ay_mean - by_mean)**2)**0.5
-    # TODO should this be done relative to the image size?
+    dist = (((ax_mean - bx_mean) / width) ** 2 +
+            ((ay_mean - by_mean) / height) ** 2) ** 0.5
+    return dist
+
+
+def mse3d(a, b):
+    # a and b should be dicts with {'x1': #, .. 'bb_y8': #}
+    keys = ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
+            'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
+    s = 0
+    for key in keys:
+        s += (a[key] - b[key]) ** 2
+    s /= 16
+    return s
+
 
 def get_new_img_size(width, height, img_min_side=600):
     if width <= height:

@@ -11,7 +11,7 @@ from keras import backend as K
 from keras.layers import Input
 from keras.models import Model
 from keras_frcnn import roi_helpers
-import scripts.helper
+import scripts.helper as helper
 
 sys.setrecursionlimit(40000)
 
@@ -29,7 +29,7 @@ parser.add_option("--print_classes", dest="print_classes", action="store_true", 
 (options, args) = parser.parse_args()
 
 if not options.run_folder:  # if filename is not given
-    run_folder = scripts.helper.chose_from_folder("runs/", "*", "--run_folder") + "/"
+    run_folder = helper.chose_from_folder("runs/", "*", "--run_folder") + "/"
 else:
     run_folder = options.run_folder + "" if options.run_folder[-1] == '/' else '/'
 config_output_filename = run_folder + "config.pickle"
@@ -40,7 +40,7 @@ with open(config_output_filename, 'rb') as f_in:
 if options.model:
     model_path = options.model
 else:
-    model_path = scripts.helper.chose_from_folder(run_folder, "*.hdf5", "--model")
+    model_path = helper.chose_from_folder(run_folder, "*.hdf5", "--model")
 
 # model_list = glob.glob(run_folder + "*.hdf5")
 # if not options.model and len(model_list) > 1:
@@ -69,56 +69,6 @@ C.rot_90 = False
 
 img_path = options.test_path
 assert img_path[-1] == '/'
-
-
-def format_img_size(img, C):
-    """ formats the image size based on config """
-    img_min_side = float(C.im_size)
-    (height, width, _) = img.shape
-    if width <= height:
-        ratio = img_min_side / width
-        new_height = int(ratio * height)
-        new_width = int(img_min_side)
-    else:
-        ratio = img_min_side / height
-        new_width = int(ratio * width)
-        new_height = int(img_min_side)
-    img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
-    # print("ratio=", ratio)
-
-    return img, ratio
-
-
-def format_img_channels(img, C):
-    """ formats the image channels based on config """
-    img = img[:, :, (2, 1, 0)]
-    img = img.astype(np.float32)
-    img[:, :, 0] -= C.img_channel_mean[0]
-    img[:, :, 1] -= C.img_channel_mean[1]
-    img[:, :, 2] -= C.img_channel_mean[2]
-    img /= C.img_scaling_factor
-    img = np.transpose(img, (2, 0, 1))
-    img = np.expand_dims(img, axis=0)
-    return img
-
-
-def format_img(img, C):
-    """ formats an image for model prediction based on config """
-    img, ratio = format_img_size(img, C)
-    img = format_img_channels(img, C)
-    return img, ratio
-
-
-# Method to transform the coordinates of the bounding box to its original size
-def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
-    real_x1 = int(round(x1 // ratio))
-    real_y1 = int(round(y1 // ratio))
-    real_x2 = int(round(x2 // ratio))
-    real_y2 = int(round(y2 // ratio))
-
-    real_bb3d = [int(round(v // ratio)) for v in bb3d]
-
-    return (real_x1, real_y1, real_x2, real_y2, real_bb3d)
 
 
 """
@@ -210,7 +160,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 
     img = cv2.imread(filepath)
 
-    X, ratio = format_img(img, C)
+    X, ratio = helper.format_img(img, C)
 
     if K.image_dim_ordering() == 'tf':
         X = np.transpose(X, (0, 2, 3, 1))
@@ -301,7 +251,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
             y2 = res[3]
             bb3d = res[4:]
 
-            (real_x1, real_y1, real_x2, real_y2, real_bb3d) = get_real_coordinates(ratio, x1, y1, x2, y2, bb3d)
+            (real_x1, real_y1, real_x2, real_y2, real_bb3d) = helper.get_real_coordinates(ratio, x1, y1, x2, y2, bb3d)
 
             """
             vp1x, vp1y, val1, r1, s1 = intersect_lines((real_bb3d[0], real_bb3d[6]), (real_bb3d[1], real_bb3d[7]), (real_bb3d[5], real_bb3d[11]), (real_bb3d[4], real_bb3d[10]))

@@ -28,7 +28,7 @@ def augment(img_data, config, augment=True):
             crop_y2 = min(rows, bbox_c['y2'] + np.random.randint(0, 400))
 
             if crop_x1 > 0 or crop_y1 > 0 or crop_x2 < cols or crop_y2 < rows:
-                #helper.show_img_data(img, img_data_aug, 600, prefix="before_", scale=False)
+                # helper.show_img_data(img, img_data_aug, 600, prefix="before_", scale=False)
                 # there happened some actual cropping
                 img_data_aug['crop'] = [crop_x1, crop_y1, cols - crop_x2, rows - crop_y2]
                 img = img[crop_y1:crop_y2, crop_x1:crop_x2, :]
@@ -50,8 +50,8 @@ def augment(img_data, config, augment=True):
                         new_bboxes.append(new_bbox)
                 assert len(new_bboxes) > 0, "Somehow no bounding box was added"
                 img_data_aug['bboxes'] = new_bboxes
-                #helper.show_img_data(img, img_data_aug, 600, prefix="after_", scale=False)
-                print("now:", img_data_aug)
+                # helper.show_img_data(img, img_data_aug, 600, prefix="after_", scale=False)
+                # print("cropped image, now:", img_data_aug)
 
         rows, cols = img.shape[:2]  # might have changed due to cropping
 
