@@ -181,10 +181,10 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
         br = pred['bottomright']
         height, width = full_img.shape[:2]
         
-        x_min = max(tl['x'] - 50, 0)
-        x_max = min(br['x'] + 50, width)
-        y_min = max(tl['y'] - 50, 0)
-        y_max = min(br['y'] + 50, height)
+        x_min = max(tl['x'] - 30, 0)
+        x_max = min(br['x'] + 30, width)
+        y_min = max(tl['y'] - 30, 0)
+        y_max = min(br['y'] + 30, height)
 
         img = full_img[y_min:y_max, x_min:x_max]
 
@@ -353,6 +353,8 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
                                  "x1": real_x1, "y1": real_y1, "x2": real_x2, "y2": real_y2})
                 textLabel = '{}: {}'.format(key, int(100 * new_probs[jk]))
                 all_dets.append((key, 100 * new_probs[jk]))
+
+                cv2.rectangle(full_img_cpy, (x_min, y_min), (x_max, y_max), (0, 255, 0), 1)
 
                 # if options.print_classes:
                     # (retval, baseLine) = cv2.getTextSize(textLabel, cv2.FONT_HERSHEY_COMPLEX, 1, 1)
