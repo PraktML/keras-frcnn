@@ -53,16 +53,22 @@ def iou(a, b):
     return float(area_i) / float(area_u)
 
 
-def dist3d(a, b, width, height):
-    # a and b should be dicts with {'x1': #, .. 'bb_y8': #}
+def mean3d(a):
+    # a should be dict with {'x1': #, .. 'bb_y8': #}
+
     keys_x = ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8']
     keys_y = ['bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
 
     ax_mean = np.mean([a[key] for key in keys_x])
     ay_mean = np.mean([a[key] for key in keys_y])
 
-    bx_mean = np.mean([b[key] for key in keys_x])
-    by_mean = np.mean([b[key] for key in keys_y])
+    return ax_mean, ay_mean
+
+
+def dist3d(a, b, width, height):
+    # a and b should be dicts with {'x1': #, .. 'bb_y8': #}
+    ax_mean, ay_mean = mean3d(a)
+    bx_mean, by_mean = mean3d(b)
 
     dist = (((ax_mean - bx_mean) / width) ** 2 +
             ((ay_mean - by_mean) / height) ** 2) ** 0.5

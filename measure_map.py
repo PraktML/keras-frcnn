@@ -27,8 +27,8 @@ def get_map(pred, gt, f):
     """
     T = {}
     P = {}
-    metric_mse = []
-    metric_dist = []
+    # metric_mse = []
+    # metric_dist = []
     fx, fy = f
 
     for bbox in gt:
@@ -80,25 +80,25 @@ def get_map(pred, gt, f):
             # iou = data_generators.iou((pred_x1, pred_y1, pred_x2, pred_y2), (gt_x1, gt_y1, gt_x2, gt_y2))
             iou = data_generators.iou((pred_box['x1'], pred_box['y1'], pred_box['x2'], pred_box['y2']),
                                       (gt_3dd['x1'], gt_3dd['y1'], gt_3dd['x2'], gt_3dd['y2']))
-            dist3d = data_generators.dist3d(pred_box, gt_3dd, gt_3dd['x2'] - gt_3dd['x1'], gt_3dd['y2']-gt_3dd['y1'])
-            mse3d = data_generators.mse3d(pred_box, gt_3dd)
-
-            if dist3d < best_dist3d:
-                best_dist3d = dist3d
-                best_dist3d_gt_id = gt_id
-            if mse3d < best_dist3d:
-                best_mse3d = mse3d
-                best_mse3d_gt_id = gt_id
+            # dist3d = data_generators.dist3d(pred_box, gt_3dd, gt_3dd['x2'] - gt_3dd['x1'], gt_3dd['y2']-gt_3dd['y1'])
+            # mse3d = data_generators.mse3d(pred_box, gt_3dd)
+            #
+            # if dist3d < best_dist3d:
+            #     best_dist3d = dist3d
+            #     best_dist3d_gt_id = gt_id
+            # if mse3d < best_mse3d:
+            #     best_mse3d = mse3d
+            #     best_mse3d_gt_id = gt_id
 
             if iou >= 0.5:
                 found_match = True
                 gt_box['bbox_matched'] = True
-                break  # TODO: delete break here, if we want to check for all.
+                break
             else:
                 continue
         T[pred_class].append(int(found_match))
-        metric_dist.append((best_dist3d_gt_id, best_dist3d))
-        metric_mse.append((best_mse3d_gt_id, best_mse3d))
+        # metric_dist.append((best_dist3d_gt_id, best_dist3d))
+        # metric_mse.append((best_mse3d_gt_id, best_mse3d))
 
     for gt_box in gt:
         if not gt_box['bbox_matched']:  #TODO there was "and not gt_box['difficult']:" before, why?
@@ -111,7 +111,7 @@ def get_map(pred, gt, f):
 
     # import pdb
     # pdb.set_trace()
-    return T, P, metric_dist, metric_mse
+    return T, P  # , metric_dist, metric_mse
 
 
 sys.setrecursionlimit(40000)
@@ -254,6 +254,8 @@ test_imgs = [v for s,v in all_imgs.items() if v['imageset'] == 'test']
 
 T = {}
 P = {}
+MSE = {}
+DIST = {}
 for idx, img_data in enumerate(test_imgs):
     print('test image {}/{}:'.format(idx, len(test_imgs)))
     st = time.time()
@@ -270,7 +272,8 @@ for idx, img_data in enumerate(test_imgs):
             'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
             'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
         ]
-        img = helper.draw_annotations(img, [bbox[point] for point in points], data_format="3d_reg", fac=bbox['class'])
+        img = helper.draw_annotations(img, [bbox[point] for point in points], data_format="3d_reg",
+                                      fac=bbox['class'], numbers=False)
     if K.image_dim_ordering() == 'tf':
         X = np.transpose(X, (0, 2, 3, 1))
 
@@ -344,10 +347,10 @@ for idx, img_data in enumerate(test_imgs):
 
     all_dets = []
 
-    for key in bboxes:
-        bbox = np.array(bboxes[key])
+    for cls in bboxes:
+        bbox = np.array(bboxes[cls])
 
-        new_boxes, new_probs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[key]), overlap_thresh=0.5)
+        new_boxes, new_probs = roi_helpers.non_max_suppression_fast(bbox, np.array(probs[cls]), overlap_thresh=0.5)
         for jk in range(new_boxes.shape[0]):
             res = new_boxes[jk, :]
             points = [
@@ -357,12 +360,12 @@ for idx, img_data in enumerate(test_imgs):
             ]
             # det = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': key, 'prob': new_probs[jk]}
             det = {points: res[idx] for idx, points in enumerate(points)}
-            det['class'] = key
+            det['class'] = cls
             det['prob'] = new_probs[jk]
             all_dets.append(det)
 
     print('Elapsed time = {}'.format(time.time() - st))
-    t, p, metric_dist, metric_mse = get_map(all_dets, img_data['bboxes'], (fx, fy))
+    t, p = get_map(all_dets, img_data['bboxes'], (fx, fy))
 
     # sort indexes by predicted probabilites (is also done like that in get_map)
     pred_probs = np.array([s['prob'] for s in all_dets])
@@ -370,14 +373,17 @@ for idx, img_data in enumerate(test_imgs):
     _, ratio = helper.format_img(img, C)
 
     for box_idx in box_idx_sorted_by_prob:
+        points3dxy = ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
+                      'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
         bbox = all_dets[box_idx]
         (real_x1, real_y1, real_x2, real_y2, real_bb3d) = helper.get_real_coordinates(
             ratio, bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2'],
-            [bbox[k] for k in
-                ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
-                 'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
-            ]
+            [bbox[k] for k in points3dxy]
+
         )
+        bb_real = {'class': bbox['class'], 'x1': real_x1, 'y1': real_y1, 'x2': real_x2, 'y2': real_y2}
+        for i, k in enumerate(points3dxy):
+            bb_real[k] = real_bb3d[i]
         colors = [(0, 0, 255),  # red           0
                   (0, 255, 255),  # yellow      1
                   (255, 255, 255),  # white     2
@@ -389,48 +395,103 @@ for idx, img_data in enumerate(test_imgs):
                   ]
         for point in range(8):
             cv2.circle(img, (real_bb3d[point], real_bb3d[point + 8]), 1, colors[point], 3)
+        #
+        # # P1 - P2
+        # cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P1 - P4
+        # cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P1 - P5
+        # cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P2 - P3
+        # cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P2 - P6
+        # cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P3 - P4
+        # cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P3 - P7
+        # cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P4 - P8
+        # cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P5 - P6
+        # cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P5 - P8
+        # cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P6 - P7
+        # cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # # P7 - P8
+        # cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
 
-        # P1 - P2
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P1 - P4
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P1 - P5
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P2 - P3
-        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P2 - P6
-        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P3 - P4
-        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P3 - P7
-        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P4 - P8
-        cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P5 - P6
-        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P5 - P8
-        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P6 - P7
-        cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), (0, 0, 0), 1, cv2.LINE_AA)
-        # P7 - P8
-        cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), (0, 0, 0), 1, cv2.LINE_AA)
+        # we have current bounding box bb_real, want metrics:
+        # - dist to best gt (normalize by gt)
+        # - mse  to best gt (normalize by gt)
+        # - was ground truth detected at all? (use their metrics)
 
-    print("Distances:", metric_dist)
-    print("MSE:", metric_mse)
+        best_dist = float("inf")
+        best_dist_idx = None
+        for gt_idx, bb_gt in enumerate(img_data['bboxes']):
+            dist = data_generators.dist3d(bb_gt, bb_real, bb_gt['x2']-bb_gt['x1'], bb_gt['y2']-bb_gt['y1'])
+            if dist < best_dist:
+                best_dist = dist
+                best_dist_idx = gt_idx
 
-    for key in t.keys():
-        if key not in T:
-            T[key] = []
-            P[key] = []
+        print("Best dist for bb#", box_idx, "to gt#", best_dist_idx, "with:", best_dist)
+
+        if best_dist_idx is not None:
+            mean_gtx, mean_gty = data_generators.mean3d(img_data['bboxes'][best_dist_idx])
+            mean_rx, mean_ry = data_generators.mean3d(bb_real)
+            cv2.line(img, (int(mean_gtx), int(mean_gty)), (int(mean_rx), int(mean_ry)),
+                     colors[box_idx%8], 1, cv2.LINE_AA)
+
+        best_mse = float('inf')
+        best_mse_idx = None
+        for gt_idx, bb_gt in enumerate(img_data['bboxes']):
+            mse = data_generators.mse3d(bb_gt, bb_real)
+            if mse < best_mse:
+                best_mse = mse
+                best_mse_idx = gt_idx
+
+        print("Best MSE for bb#", box_idx, "to gt#", best_mse_idx, "with:", best_mse)
+
+        if bb_real['class'] not in DIST:
+            DIST[bb_real['class']] = []
+        if bb_real['class'] not in MSE:
+            MSE[bb_real['class']] = []
+
+        DIST[bb_real['class']].append(best_dist)
+        MSE[bb_real['class']].append(best_mse)
+
+    # print("Distances:", metric_dist)
+    # print("MSE:", metric_mse)
+
+    for cls in t.keys():
+        if cls not in T:
+            T[cls] = []
+            P[cls] = []
         # add new entries too all classes that had to be recognized.
-        T[key].extend(t[key])
-        P[key].extend(p[key])
+        T[cls].extend(t[cls])
+        P[cls].extend(p[cls])
     all_aps = []
-    for key in T.keys():
-        ap = average_precision_score(T[key], P[key])
-        print('{} AP: {}'.format(key, ap))
+    s = ""
+    for cls in T.keys():
+        ap = average_precision_score(T[cls], P[cls])
+        s += ', {} AP: {}'.format(cls, ap)
         all_aps.append(ap)
-    print('mAP = {}'.format(np.mean(np.array(all_aps))))
+    print('mAP = {}'.format(np.mean(np.array(all_aps))), s)
+
+    s = ""
+    all_dist = []
+    for cls in MSE.keys():
+        s += ', {} DIST: {}'.format(cls, np.mean(DIST[cls]))
+        all_dist.extend(DIST[cls])
+    print('DIST: {}'.format(np.mean(all_dist)), s)
+
+    s = ""
+    all_mse = []
+    for cls in MSE.keys():
+        s += ', {} MSE: {}'.format(cls, np.mean(MSE[cls]))
+        all_mse.extend(MSE[cls])
+    print('MSE: {}'.format(np.mean(all_mse)), s)
+
     # print(T)
     # print(P)
     img_path = results_folder + '{}.png'.format(img_name)

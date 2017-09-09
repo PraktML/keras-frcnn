@@ -26,7 +26,7 @@ def chose_from_folder(folder_path, file_extension="*", missing_parameter=None):
 #                      '/fzi/ids/mlprak1/no_backup/VehicleReId/1A/1A_%06d.png')
 
 
-def draw_annotations(img, coords, data_format="3d_reg", fac="n/a"):
+def draw_annotations(img, coords, data_format="3d_reg", fac="n/a", numbers=True):
     img = np.copy(img)
     # reformat it from zero centered to  3x (0-255)
     # minimum = np.amin(img)
@@ -73,9 +73,11 @@ def draw_annotations(img, coords, data_format="3d_reg", fac="n/a"):
 
         for i in range(8):
             img = cv2.circle(img, (int(coords[4 + i]), int(coords[4 + 8 + i])), 10, color=colors[i], thickness=9)
-            img = cv2.putText(img, str(i), (int(coords[4 + i]), int(coords[4 + 8 + i])), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,0,0), 4)
-        img = cv2.line(img, (int(coords[5]), int(coords[5+8])), (int(coords[8]), int(coords[8+8])), (255, 255, 255), thickness=5)
-        img = cv2.line(img, (int(coords[4]), int(coords[4 + 8])), (int(coords[9]), int(coords[9 + 8])), (255, 255, 255), thickness=5)
+            if numbers:
+                img = cv2.putText(img, str(i), (int(coords[4 + i]), int(coords[4 + 8 + i])), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,0,0), 4)
+        if numbers:
+            img = cv2.line(img, (int(coords[5]), int(coords[5+8])), (int(coords[8]), int(coords[8+8])), (255, 255, 255), thickness=5)
+            img = cv2.line(img, (int(coords[4]), int(coords[4 + 8])), (int(coords[9]), int(coords[9 + 8])), (255, 255, 255), thickness=5)
 
         img = cv2.putText(img, fac, (int(coords[0]), int(coords[1])-50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 23, 23), 4)
         img = cv2.putText(img, fac, (int(coords[0]), int(coords[3])+5), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 23, 23), 4)
