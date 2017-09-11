@@ -75,13 +75,17 @@ def dist3d(a, b, width, height):
     return dist
 
 
-def mse3d(a, b):
+def mse3d(a, b, width, height):
     # a and b should be dicts with {'x1': #, .. 'bb_y8': #}
-    keys = ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
-            'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
+    keys_x = ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8']
+    keys_y = ['bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
+
     s = 0
-    for key in keys:
-        s += (a[key] - b[key]) ** 2
+    for key in keys_x:
+        s += ((a[key] - b[key])/width) ** 2
+
+    for key in keys_y:
+        s += ((a[key] - b[key])/height) ** 2
     s /= 16
     return s
 

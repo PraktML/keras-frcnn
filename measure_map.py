@@ -272,8 +272,8 @@ for idx, img_data in enumerate(test_imgs):
             'bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
             'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8'
         ]
-        img = helper.draw_annotations(img, [bbox[point] for point in points], data_format="3d_reg",
-                                      fac=bbox['class'], numbers=False)
+        # img = helper.draw_annotations(img, [bbox[point] for point in points], data_format="3d_reg",
+        #                              fac=bbox['class'], numbers=False)
     if K.image_dim_ordering() == 'tf':
         X = np.transpose(X, (0, 2, 3, 1))
 
@@ -397,29 +397,29 @@ for idx, img_data in enumerate(test_imgs):
             cv2.circle(img, (real_bb3d[point], real_bb3d[point + 8]), 1, colors[point], 3)
 
         # P1 - P2
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), (128,128,128), 1, cv2.LINE_AA)
         # P1 - P4
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), (128,128,128), 1, cv2.LINE_AA)
         # P1 - P5
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), (128,128,128), 1, cv2.LINE_AA)
         # P2 - P3
-        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), (128,128,128), 1, cv2.LINE_AA)
         # P2 - P6
-        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), (128,128,128), 1, cv2.LINE_AA)
         # P3 - P4
-        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), (128,128,128), 1, cv2.LINE_AA)
         # P3 - P7
-        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), (128,128,128), 1, cv2.LINE_AA)
         # P4 - P8
-        cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), (128,128,128), 1, cv2.LINE_AA)
         # P5 - P6
-        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), (128,128,128), 1, cv2.LINE_AA)
         # P5 - P8
-        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), (128,128,128), 1, cv2.LINE_AA)
         # P6 - P7
-        cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), (128,128,128), 1, cv2.LINE_AA)
         # P7 - P8
-        cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), (128,128,128), 1, cv2.LINE_AA)
 
         # we have current bounding box bb_real, want metrics:
         # - dist to best gt (normalize by gt)
@@ -447,7 +447,7 @@ for idx, img_data in enumerate(test_imgs):
         best_mse = float('inf')
         best_mse_idx = None
         for gt_idx, bb_gt in enumerate(img_data['bboxes']):
-            mse = data_generators.mse3d(bb_gt, bb_real)
+            mse = data_generators.mse3d(bb_gt, bb_real, bb_gt['x2']-bb_gt['x1'], bb_gt['y2']-bb_gt['y1'])
             if mse < best_mse:
                 best_mse = mse
                 best_mse_idx = gt_idx
@@ -500,4 +500,4 @@ for idx, img_data in enumerate(test_imgs):
     print("write img to", img_path)
     cv2.imwrite(img_path, img)
 
-
+    pass
