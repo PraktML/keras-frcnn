@@ -248,8 +248,8 @@ if os.path.exists(C.output_folder + "splits.pickle"):
 # C.train_path contains the path to the annotation file (a saved version is also stored in the run folder)
 # TODO: remove this
 splits = None
-C.train_path = "annotations/bb_3DregCrop.txt"
-all_imgs, _, _ = get_data(C.train_path, splits)
+C.train_path = "annotations/testfile_small.txt"
+all_imgs, _, _ = get_data(C.train_path, splits, test_only=True)
 test_imgs = [v for s,v in all_imgs.items() if v['imageset'] == 'test']
 
 T = {}
@@ -395,31 +395,31 @@ for idx, img_data in enumerate(test_imgs):
                   ]
         for point in range(8):
             cv2.circle(img, (real_bb3d[point], real_bb3d[point + 8]), 1, colors[point], 3)
-        #
-        # # P1 - P2
-        # cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P1 - P4
-        # cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P1 - P5
-        # cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P2 - P3
-        # cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P2 - P6
-        # cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P3 - P4
-        # cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P3 - P7
-        # cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P4 - P8
-        # cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P5 - P6
-        # cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P5 - P8
-        # cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P6 - P7
-        # cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
-        # # P7 - P8
-        # cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+
+        # P1 - P2
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P1 - P4
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P1 - P5
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P2 - P3
+        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P2 - P6
+        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P3 - P4
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P3 - P7
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P4 - P8
+        cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P5 - P6
+        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P5 - P8
+        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P6 - P7
+        cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), colors[box_idx%8], 1, cv2.LINE_AA)
+        # P7 - P8
+        cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), colors[box_idx%8], 1, cv2.LINE_AA)
 
         # we have current bounding box bb_real, want metrics:
         # - dist to best gt (normalize by gt)
@@ -441,6 +441,8 @@ for idx, img_data in enumerate(test_imgs):
             mean_rx, mean_ry = data_generators.mean3d(bb_real)
             cv2.line(img, (int(mean_gtx), int(mean_gty)), (int(mean_rx), int(mean_ry)),
                      colors[box_idx%8], 1, cv2.LINE_AA)
+            img = cv2.putText(img, "{0:0.2f}".format(best_dist), (int(mean_rx), int(mean_ry)), cv2.FONT_HERSHEY_SIMPLEX, 1.5,
+                              colors[box_idx % 8], 2)
 
         best_mse = float('inf')
         best_mse_idx = None

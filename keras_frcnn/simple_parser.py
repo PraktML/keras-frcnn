@@ -4,7 +4,9 @@ import scripts.settings
 import numpy as np
 
 
-def get_data(input_path, train_test_split=None):
+def get_data(input_path, train_test_split=None, test_only=False):
+
+
 
     found_bg = False
     all_imgs = {}
@@ -32,13 +34,16 @@ def get_data(input_path, train_test_split=None):
             line_split = line.strip().split(',')
 
             try:
-                (filename, x1, y1, x2, y2, class_name) = line_split
-            except:
+                #(filename, x1, y1, x2, y2, class_name) = line_split
+            #except:
                 (filename, x1, y1, x2, y2,
                  bb_x1, bb_y1, bb_x2, bb_y2, bb_x3, bb_y3, bb_x4, bb_y4,
                  bb_x5, bb_y5, bb_x6, bb_y6, bb_x7, bb_y7, bb_x8, bb_y8,
                  class_name
                  ) = line_split
+            except:
+                print(line_split, "not divisable")
+                raise
             # add prefix to filename
             filename = scripts.settings.variable_path_to_abs(filename)
 
@@ -72,12 +77,20 @@ def get_data(input_path, train_test_split=None):
 
                 # determine if the file will be test or training data
                 if train_test_split is None:
-                    if np.random.randint(0, 6) >= 1:
+                    if np.random.randint(0, 6) >= 1 and not test_only:
                         all_imgs[filename]['imageset'] = 'trainval'
                     else:
                         all_imgs[filename]['imageset'] = 'test'
                 else:
-                    all_imgs[filename]['imageset'] = train_test_split[filename]
+                    splitfilename = filename.replace(
+                        "/media/florian/PLATTE/programmieren/VehicleReId/video_shots/",
+                        "/data/mlprak1/VehicleReId/video_shots/"
+                    )
+                    splitfilename = splitfilename.replace(
+                        "/media/florian/PLATTE/programmieren/BoxCars116k/",
+                        "/disk/ml/datasets/BoxCars116k/"
+                    )
+                    all_imgs[filename]['imageset'] = train_test_split[splitfilename]
 
             idx += 1
             try:
