@@ -110,6 +110,12 @@ def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
 
     return (real_x1, real_y1, real_x2, real_y2, real_bb3d)
 
+def get_yolo_bb_padding(h, y1, y2):
+    low = 50
+    high = 5
+    my = (y1 + y2) / 2
+    return int(high + (my / h) * (low - high))
+
 
 class_mapping = C.class_mapping
 
@@ -181,10 +187,12 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
         br = pred['bottomright']
         height, width = full_img.shape[:2]
         
-        x_min = max(tl['x'] - 30, 0)
-        x_max = min(br['x'] + 30, width)
-        y_min = max(tl['y'] - 30, 0)
-        y_max = min(br['y'] + 30, height)
+        padding = get_yolo_bb_padding(height, tl['y'], br['y'])
+
+        x_min = max(tl['x'] - padding, 0)
+        x_max = min(br['x'] + padding, width)
+        y_min = max(tl['y'] - padding, 0)
+        y_max = min(br['y'] + padding, height)
 
         img = full_img[y_min:y_max, x_min:x_max]
 
