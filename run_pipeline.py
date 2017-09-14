@@ -168,8 +168,8 @@ rpn_overlap_trashhold = 0.5
 
 visualise = True
 
-options = {"model": "./darkflow/cfg/yolo.cfg", "load": "./darkflow/bin/yolo.weights", "threshold": 0.1}
-tfnet = TFNet(options)
+options_yolo = {"model": "./darkflow/cfg/yolo.cfg", "load": "./darkflow/bin/yolo.weights", "threshold": 0.1}
+tfnet = TFNet(options_yolo)
 
 
 for idx, img_name in enumerate(sorted(os.listdir(img_path))):
