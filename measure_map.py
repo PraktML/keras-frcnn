@@ -15,6 +15,7 @@ from keras.models import Model
 from keras_frcnn import roi_helpers
 from keras_frcnn import data_generators
 from sklearn.metrics import average_precision_score
+from shutil import copy2
 
 
 def get_map(pred, gt, f):
@@ -38,7 +39,7 @@ def get_map(pred, gt, f):
     box_idx_sorted_by_prob = np.argsort(pred_probs)[::-1]
 
     for box_idx in box_idx_sorted_by_prob:
-        # iterate over all bounding boxes sorted by probability, the highest with an overlap of
+        # iterate over all found bounding boxes/ROIs sorted by probability
         pred_box = pred[box_idx]
         pred_class = pred_box['class']
         # pred_x1 = pred_box['x1']
@@ -142,15 +143,24 @@ if options.model:
     model_path = options.model
 else:
     model_path = helper.chose_from_folder(run_folder, "*.hdf5", "--model")
-config_output_filename = run_folder + "config.pickle"
+#config_output_filename = run_folder + "config.pickle"
 print("Specified Model for Testing:", model_path)
 
 model_name = model_path[model_path.rfind("/") + 1:]
-results_folder = os.path.join(run_folder, "results_" + model_name[:model_name.rfind(".")] + "/")
+results_folder = os.path.join(run_folder, "results_" + model_name[:model_name.rfind(".")] + "/"+
+                              time.strftime("%Y%m%d-%H%M%S")) + "/"
+test_anno_path = helper.chose_from_folder(run_folder, "*.txt", "")
+#test_anno_path = helper.chose_from_folder("annotations/", "*.txt", "")
+
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
 print("write to", results_folder)
-
+copy2(test_anno_path, results_folder)
+stats_logger = helper.Logger(results_folder, "stats.csv")
+stats_logger.log(
+    "Imgpath,ROI#,Class,DIST,MSE,DIST_idx,MSE_idx"
+)
+logger = helper.Logger(results_folder, "log.txt")
 
 if options.parser == 'pascal_voc':
     from keras_frcnn.pascal_voc_parser import get_data
@@ -203,7 +213,7 @@ if 'bg' not in class_mapping:
     class_mapping['bg'] = len(class_mapping)
 
 class_mapping = {v: k for k, v in class_mapping.items()}
-print(class_mapping)
+logger.log_print(class_mapping)
 class_to_color = {class_mapping[v]: np.random.randint(0, 255, 3) for v in class_mapping}
 C.num_rois = int(options.num_rois)
 
@@ -239,17 +249,16 @@ model_rpn.compile(optimizer='sgd', loss='mse')
 model_classifier.compile(optimizer='sgd', loss='mse')
 
 
-splits = None
-# if the splits already exist, we will load them in
-# delete this file if you are a different amount of pictures now
-if os.path.exists(C.output_folder + "splits.pickle"):
-    with open(C.output_folder + "splits.pickle", 'rb') as splits_f:
-        splits = pickle.load(splits_f)
-# C.train_path contains the path to the annotation file (a saved version is also stored in the run folder)
-# TODO: remove this
-splits = None
-C.train_path = "annotations/testfile_small.txt"
-all_imgs, _, _ = get_data(C.train_path, splits, test_only=True)
+# splits = None
+# # if the splits already exist, we will load them in
+# # delete this file if you are a different amount of pictures now
+# if os.path.exists(C.output_folder + "splits.pickle"):
+#     with open(C.output_folder + "splits.pickle", 'rb') as splits_f:
+#         splits = pickle.load(splits_f)
+# # C.train_path contains the path to the annotation file (a saved version is also stored in the run folder)
+# splits = None
+# test_anno_path = "annotations/testfile_small.txt"
+all_imgs, _, _ = get_data(test_anno_path, None, test_only=True)
 test_imgs = [v for s,v in all_imgs.items() if v['imageset'] == 'test']
 
 T = {}
@@ -257,7 +266,7 @@ P = {}
 MSE = {}
 DIST = {}
 for idx, img_data in enumerate(test_imgs):
-    print('test image {}/{}:'.format(idx, len(test_imgs)))
+    logger.log_print('test image {}/{}:'.format(idx, len(test_imgs)))
     st = time.time()
     filepath = img_data['filepath']
     img_name = filepath[filepath.rfind("/")+1:]
@@ -364,7 +373,7 @@ for idx, img_data in enumerate(test_imgs):
             det['prob'] = new_probs[jk]
             all_dets.append(det)
 
-    print('Elapsed time = {}'.format(time.time() - st))
+    # logger.log_print('Elapsed time = {}'.format(time.time() - st))
     t, p = get_map(all_dets, img_data['bboxes'], (fx, fy))
 
     # sort indexes by predicted probabilites (is also done like that in get_map)
@@ -396,30 +405,32 @@ for idx, img_data in enumerate(test_imgs):
         for point in range(8):
             cv2.circle(img, (real_bb3d[point], real_bb3d[point + 8]), 1, colors[point], 3)
 
+        front_color = colors[box_idx % 8] if bb_real['class'] == "Front" else (128, 128, 128)
+        back_color = colors[box_idx % 8] if bb_real['class'] == "Back" else (128, 128, 128)
         # P1 - P2
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[1], real_bb3d[9]), front_color, 1, cv2.LINE_AA)
         # P1 - P4
         cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[3], real_bb3d[11]), (128,128,128), 1, cv2.LINE_AA)
         # P1 - P5
-        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[0], real_bb3d[8]), (real_bb3d[4], real_bb3d[12]), front_color, 1, cv2.LINE_AA)
         # P2 - P3
         cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[2], real_bb3d[10]), (128,128,128), 1, cv2.LINE_AA)
         # P2 - P6
-        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[1], real_bb3d[9]), (real_bb3d[5], real_bb3d[13]), front_color, 1, cv2.LINE_AA)
         # P3 - P4
-        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[3], real_bb3d[11]), back_color, 1, cv2.LINE_AA)
         # P3 - P7
-        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[2], real_bb3d[10]), (real_bb3d[6], real_bb3d[14]), back_color, 1, cv2.LINE_AA)
         # P4 - P8
-        cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[3], real_bb3d[11]), (real_bb3d[7], real_bb3d[15]), back_color, 1, cv2.LINE_AA)
         # P5 - P6
-        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[5], real_bb3d[13]), front_color, 1, cv2.LINE_AA)
         # P5 - P8
         cv2.line(img, (real_bb3d[4], real_bb3d[12]), (real_bb3d[7], real_bb3d[15]), (128,128,128), 1, cv2.LINE_AA)
         # P6 - P7
         cv2.line(img, (real_bb3d[5], real_bb3d[13]), (real_bb3d[6], real_bb3d[14]), (128,128,128), 1, cv2.LINE_AA)
         # P7 - P8
-        cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), (128,128,128), 1, cv2.LINE_AA)
+        cv2.line(img, (real_bb3d[6], real_bb3d[14]), (real_bb3d[7], real_bb3d[15]), back_color, 1, cv2.LINE_AA)
 
         # we have current bounding box bb_real, want metrics:
         # - dist to best gt (normalize by gt)
@@ -434,15 +445,15 @@ for idx, img_data in enumerate(test_imgs):
                 best_dist = dist
                 best_dist_idx = gt_idx
 
-        print("Best dist for bb#", box_idx, "to gt#", best_dist_idx, "with:", best_dist)
+        logger.log_print("Best dist for bb#", box_idx, "to gt#", best_dist_idx, "with:", best_dist)
 
         if best_dist_idx is not None:
             mean_gtx, mean_gty = data_generators.mean3d(img_data['bboxes'][best_dist_idx])
             mean_rx, mean_ry = data_generators.mean3d(bb_real)
             cv2.line(img, (int(mean_gtx), int(mean_gty)), (int(mean_rx), int(mean_ry)),
                      colors[box_idx%8], 1, cv2.LINE_AA)
-            img = cv2.putText(img, "{0:0.2f}".format(best_dist), (int(mean_rx), int(mean_ry)), cv2.FONT_HERSHEY_SIMPLEX, 1.5,
-                              colors[box_idx % 8], 2)
+            img = cv2.putText(img, "{0:0.3f}".format(best_dist), (int(mean_rx), int(mean_ry)),
+                              cv2.FONT_HERSHEY_SIMPLEX, 1.0, colors[box_idx % 8], 2)  # font, size, color, stroke
 
         best_mse = float('inf')
         best_mse_idx = None
@@ -452,7 +463,7 @@ for idx, img_data in enumerate(test_imgs):
                 best_mse = mse
                 best_mse_idx = gt_idx
 
-        print("Best MSE for bb#", box_idx, "to gt#", best_mse_idx, "with:", best_mse)
+        logger.log_print("Best MSE for bb#", box_idx, "to gt#", best_mse_idx, "with:", best_mse)
 
         if bb_real['class'] not in DIST:
             DIST[bb_real['class']] = []
@@ -462,8 +473,15 @@ for idx, img_data in enumerate(test_imgs):
         DIST[bb_real['class']].append(best_dist)
         MSE[bb_real['class']].append(best_mse)
 
-    # print("Distances:", metric_dist)
-    # print("MSE:", metric_mse)
+        # "Imgpath,ROI#,Class,DIST,MSE,DIST_idx,MSE_idx"
+        stats_logger.log(
+            img_data['filepath'] + "," + str(box_idx) + "," + bb_real['class'] + "," +
+            str(best_dist) + "," + str(best_mse) + "," + str(best_dist_idx) + ", " + str(best_mse_idx)
+        )
+
+
+    # logger.log_print("Distances:", metric_dist)
+    # logger.log_print("MSE:", metric_mse)
 
     for cls in t.keys():
         if cls not in T:
@@ -478,26 +496,26 @@ for idx, img_data in enumerate(test_imgs):
         ap = average_precision_score(T[cls], P[cls])
         s += ', {} AP: {}'.format(cls, ap)
         all_aps.append(ap)
-    print('mAP = {}'.format(np.mean(np.array(all_aps))), s)
+    logger.log_print('mAP = {}'.format(np.mean(np.array(all_aps))), s)
 
     s = ""
     all_dist = []
     for cls in MSE.keys():
         s += ', {} DIST: {}'.format(cls, np.mean(DIST[cls]))
         all_dist.extend(DIST[cls])
-    print('DIST: {}'.format(np.mean(all_dist)), s)
+    logger.log_print('DIST: {}'.format(np.mean(all_dist)), s)
 
     s = ""
     all_mse = []
     for cls in MSE.keys():
         s += ', {} MSE: {}'.format(cls, np.mean(MSE[cls]))
         all_mse.extend(MSE[cls])
-    print('MSE: {}'.format(np.mean(all_mse)), s)
+    logger.log_print('MSE: {}'.format(np.mean(all_mse)), s)
 
     # print(T)
     # print(P)
-    img_path = results_folder + '{}.png'.format(img_name)
-    print("write img to", img_path)
+    img_path = results_folder + '/' + img_name
+    logger.log_print("write img to", img_path)
     cv2.imwrite(img_path, img)
 
     pass

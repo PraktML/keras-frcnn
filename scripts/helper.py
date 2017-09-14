@@ -175,14 +175,15 @@ def show_net_input(X, img_data, C, outpath="./"):
 
 
 class Logger:
-    def __init__(self, log_dir, log_file):
+    def __init__(self, log_dir, log_file, eol="\n"):
         self.log_path = log_dir + log_file
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
+        self.eol = eol
 
     def log(self, s):
         with open(self.log_path, "a") as log:
-            log.write(str(s))
+            log.write(str(s)+self.eol)
 
     def log_print(self, *args):
         print(*args)

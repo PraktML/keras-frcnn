@@ -20,7 +20,7 @@ SUFFIX_VRI = '.bmp'
 
 OUTPUT_FILE = "../annotations/"
 OUTPUT_FILE += "bb_3DregCrop_all.txt"
-OUTPUT_CUT = "cropped/"
+OUTPUT_CUT = "cropped_new/"
 
 # shall the VRI images be cropped?
 USE_VRI_CUTTING = True

@@ -119,9 +119,15 @@ def read_vehReID_random():
                 #
                 #    In my first step it only seems necessary to teach the net to some sides of this cube
                 #
-            cv2.line(img, (0, int(shot["sep_y"])), (2000, int(shot["sep_m"] * 2000 + shot["sep_y"])), (0,0,255), 4)
+            # draw lane seperator
+            cv2.line(img, (0, int(shot["sep_y"])), (2000, int(shot["sep_m"] * 2000 + shot["sep_y"])), (0, 0, 255), 4)
 
-            out_path = OUT_FOLDER + name + "/" + str(sample) + "_" + str(offset) + ".bmp"
+            # draw top cropping line
+            img_width = img.shape[1]
+
+            cv2.line(img, (0, shot["y_crop"]), (img_width-1, shot["y_crop"]), (0, 255, 0), 4)
+
+            out_path = OUT_FOLDER + name + "/" + str(sample) + "_" + str(offset) + ".png"
             print("write to", out_path)
             if not os.path.exists(out_path[:out_path.rfind("/")]):
                 print("created folder")

@@ -23,7 +23,7 @@ import scripts.helper as helper
 from keras.utils import generic_utils
 # from keras.callbacks import TensorBoard
 
-VIZ_DEBUG = True
+VIZ_DEBUG = False
 sys.setrecursionlimit(40000)
 parser = OptionParser()
 
