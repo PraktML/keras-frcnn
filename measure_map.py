@@ -156,9 +156,13 @@ if not os.path.exists(results_folder):
     os.makedirs(results_folder)
 print("write to", results_folder)
 copy2(test_anno_path, results_folder)
-stats_logger = helper.Logger(results_folder, "stats.csv")
-stats_logger.log(
+stats_bb_logger = helper.Logger(results_folder, "stats_bb.csv")
+stats_bb_logger.log(
     "Imgpath,ROI#,Class,DIST,MSE,DIST_idx,MSE_idx"
+)
+stats_gt_logger = helper.Logger(results_folder, "stats_gt.csv")
+stats_gt_logger.log(
+    "Imgpath,GT#,Class,DIST,MSE,DIST_idx,MSE_idx"
 )
 logger = helper.Logger(results_folder, "log.txt")
 
@@ -263,8 +267,11 @@ test_imgs = [v for s,v in all_imgs.items() if v['imageset'] == 'test']
 
 T = {}
 P = {}
-MSE = {}
-DIST = {}
+MSE_BB = {}
+DIST_BB = {}
+MSE_GT = {}
+DIST_GT = {}
+
 for idx, img_data in enumerate(test_imgs):
     logger.log_print('test image {}/{}:'.format(idx, len(test_imgs)))
     st = time.time()
@@ -381,6 +388,8 @@ for idx, img_data in enumerate(test_imgs):
     box_idx_sorted_by_prob = np.argsort(pred_probs)[::-1]
     _, ratio = helper.format_img(img, C)
 
+    pred_bboxes_real = []
+
     for box_idx in box_idx_sorted_by_prob:
         points3dxy = ['bb_x1', 'bb_x2', 'bb_x3', 'bb_x4', 'bb_x5', 'bb_x6', 'bb_x7', 'bb_x8',
                       'bb_y1', 'bb_y2', 'bb_y3', 'bb_y4', 'bb_y5', 'bb_y6', 'bb_y7', 'bb_y8']
@@ -388,11 +397,12 @@ for idx, img_data in enumerate(test_imgs):
         (real_x1, real_y1, real_x2, real_y2, real_bb3d) = helper.get_real_coordinates(
             ratio, bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2'],
             [bbox[k] for k in points3dxy]
-
         )
-        bb_real = {'class': bbox['class'], 'x1': real_x1, 'y1': real_y1, 'x2': real_x2, 'y2': real_y2}
+        bb_real = {'class': bbox['class'], 'x1': real_x1, 'y1': real_y1, 'x2': real_x2, 'y2': real_y2,
+                   'prob': pred_probs[box_idx]}
         for i, k in enumerate(points3dxy):
             bb_real[k] = real_bb3d[i]
+        pred_bboxes_real.append(bb_real)
         colors = [(0, 0, 255),  # red           0
                   (0, 255, 255),  # yellow      1
                   (255, 255, 255),  # white     2
@@ -465,20 +475,60 @@ for idx, img_data in enumerate(test_imgs):
 
         logger.log_print("Best MSE for bb#", box_idx, "to gt#", best_mse_idx, "with:", best_mse)
 
-        if bb_real['class'] not in DIST:
-            DIST[bb_real['class']] = []
-        if bb_real['class'] not in MSE:
-            MSE[bb_real['class']] = []
+        if bb_real['class'] not in DIST_BB:
+            DIST_BB[bb_real['class']] = []
+        if bb_real['class'] not in MSE_BB:
+            MSE_BB[bb_real['class']] = []
 
-        DIST[bb_real['class']].append(best_dist)
-        MSE[bb_real['class']].append(best_mse)
+        DIST_BB[bb_real['class']].append(best_dist)
+        MSE_BB[bb_real['class']].append(best_mse)
 
         # "Imgpath,ROI#,Class,DIST,MSE,DIST_idx,MSE_idx"
-        stats_logger.log(
+        stats_bb_logger.log(
             img_data['filepath'] + "," + str(box_idx) + "," + bb_real['class'] + "," +
             str(best_dist) + "," + str(best_mse) + "," + str(best_dist_idx) + ", " + str(best_mse_idx)
         )
 
+    # iterate through all the ground truths
+    for gt_idx, bb_gt in enumerate(img_data['bboxes']):
+        best_dist = float("inf")
+        best_dist_idx = None
+        for bb_idx, bb_real in enumerate(pred_bboxes_real):
+            dist = data_generators.dist3d(bb_gt, bb_real, bb_gt['x2'] - bb_gt['x1'], bb_gt['y2'] - bb_gt['y1'])
+            if dist < best_dist:
+                best_dist = dist
+                best_dist_idx = bb_idx
+
+        logger.log_print("Best dist for gt#", gt_idx, "to bb#", best_dist_idx, "with:", best_dist)
+
+        if best_dist_idx is not None:
+            mean_gtx, mean_gty = data_generators.mean3d(bb_gt)
+            mean_rx, mean_ry = data_generators.mean3d(pred_bboxes_real[best_dist_idx])
+            cv2.line(img, (int(mean_gtx), int(mean_gty)), (int(mean_rx), int(mean_ry)),
+                     colors[box_idx%8], 1, cv2.LINE_AA)
+            img = cv2.putText(img, "{0:0.3f}".format(best_dist), (int(mean_rx), int(mean_ry)),
+                              cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2)  # font, size, color, stroke
+
+        best_mse = float('inf')
+        best_mse_idx = None
+        for bb_idx, bb_real in enumerate(pred_bboxes_real):
+            mse = data_generators.mse3d(bb_gt, bb_real, bb_gt['x2'] - bb_gt['x1'], bb_gt['y2'] - bb_gt['y1'])
+            if mse < best_mse:
+                best_mse = mse
+                best_mse_idx = bb_idx
+
+        logger.log_print("Best MSE for gt#", gt_idx, "to bb#", best_mse_idx, "with:", best_mse)
+
+        if bb_real['class'] not in DIST_GT:
+            DIST_GT[bb_real['class']] = []
+        if bb_real['class'] not in MSE_GT:
+            MSE_GT[bb_real['class']] = []
+
+        # "Imgpath,ROI#,Class,DIST,MSE,DIST_idx,MSE_idx"
+        stats_gt_logger.log(
+            img_data['filepath'] + "," + str(gt_idx) + "," + bb_gt['class'] + "," +
+            str(best_dist) + "," + str(best_mse) + "," + str(best_dist_idx) + ", " + str(best_mse_idx)
+        )
 
     # logger.log_print("Distances:", metric_dist)
     # logger.log_print("MSE:", metric_mse)
@@ -500,16 +550,16 @@ for idx, img_data in enumerate(test_imgs):
 
     s = ""
     all_dist = []
-    for cls in MSE.keys():
-        s += ', {} DIST: {}'.format(cls, np.mean(DIST[cls]))
-        all_dist.extend(DIST[cls])
+    for cls in MSE_BB.keys():
+        s += ', {} DIST: {}'.format(cls, np.mean(DIST_GT[cls]))
+        all_dist.extend(DIST_GT[cls])
     logger.log_print('DIST: {}'.format(np.mean(all_dist)), s)
 
     s = ""
     all_mse = []
-    for cls in MSE.keys():
-        s += ', {} MSE: {}'.format(cls, np.mean(MSE[cls]))
-        all_mse.extend(MSE[cls])
+    for cls in MSE_BB.keys():
+        s += ', {} MSE: {}'.format(cls, np.mean(MSE_BB[cls]))
+        all_mse.extend(MSE_BB[cls])
     logger.log_print('MSE: {}'.format(np.mean(all_mse)), s)
 
     # print(T)
