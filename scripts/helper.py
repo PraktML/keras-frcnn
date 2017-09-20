@@ -258,3 +258,4 @@ def get_real_coordinates(ratio, x1, y1, x2, y2, bb3d):
     real_bb3d = [int(round(v // ratio)) for v in bb3d]
 
     return (real_x1, real_y1, real_x2, real_y2, real_bb3d)
+

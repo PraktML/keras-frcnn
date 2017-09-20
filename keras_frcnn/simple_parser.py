@@ -42,7 +42,7 @@ def get_data(input_path, train_test_split=None, test_only=False):
                  class_name
                  ) = line_split
             except:
-                print(line_split, "not divisable")
+                print(line_split, "from file", input_path, "not splittable")
                 raise
             # add prefix to filename
             filename = scripts.settings.variable_path_to_abs(filename)
@@ -86,6 +86,7 @@ def get_data(input_path, train_test_split=None, test_only=False):
                         "/media/florian/PLATTE/programmieren/VehicleReId/video_shots/",
                         "/data/mlprak1/VehicleReId/video_shots/"
                     )
+
                     splitfilename = splitfilename.replace(
                         "/media/florian/PLATTE/programmieren/BoxCars116k/",
                         "/disk/ml/datasets/BoxCars116k/"
