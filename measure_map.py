@@ -276,9 +276,9 @@ MSE_GT = {}
 DIST_GT = {}
 
 for idx, img_data in enumerate(test_imgs):
-    logger.log_print('test image {}/{}:'.format(idx, len(test_imgs)))
-    st = time.time()
     filepath = img_data['filepath']
+    logger.log_print('test image {}/{}: {}'.format(idx, len(test_imgs), filepath))
+    st = time.time()
     img_name = filepath[filepath.rfind("/")+1:]
 
     img = cv2.imread(filepath)
@@ -458,7 +458,7 @@ for idx, img_data in enumerate(test_imgs):
                 (bb_gt['x1'], bb_gt['y1'], bb_gt['x2'], bb_gt['y2']),
                 (bb_real['x1'], bb_real['y1'], bb_real['x2'], bb_real['y2'])
             )
-            if iou >= 0.5:
+            if iou >= 0.5 and bb_gt['class'] == bb_real['class']:
                 matched = 1
                 break
 
@@ -466,7 +466,7 @@ for idx, img_data in enumerate(test_imgs):
         best_dist_idx = None
         for gt_idx, bb_gt in enumerate(img_data['bboxes']):
             dist = data_generators.dist3d(bb_gt, bb_real, bb_gt['x2']-bb_gt['x1'], bb_gt['y2']-bb_gt['y1'])
-            if dist < best_dist:
+            if dist < best_dist and bb_gt['class'] == bb_real['class']:
                 best_dist = dist
                 best_dist_idx = gt_idx
 
@@ -484,7 +484,7 @@ for idx, img_data in enumerate(test_imgs):
         best_mse_idx = None
         for gt_idx, bb_gt in enumerate(img_data['bboxes']):
             mse = data_generators.mse3d(bb_gt, bb_real, bb_gt['x2']-bb_gt['x1'], bb_gt['y2']-bb_gt['y1'])
-            if mse < best_mse:
+            if mse < best_mse and bb_gt['class'] == bb_real['class']:
                 best_mse = mse
                 best_mse_idx = gt_idx
 
@@ -519,7 +519,7 @@ for idx, img_data in enumerate(test_imgs):
                 (bb_gt['x1'], bb_gt['y1'], bb_gt['x2'], bb_gt['y2']),
                 (bb_real['x1'], bb_real['y1'], bb_real['x2'], bb_real['y2'])
             )
-            if iou >= 0.5:
+            if iou >= 0.5 and bb_gt['class'] == bb_real['class']:
                 matched = 1
                 break
 
